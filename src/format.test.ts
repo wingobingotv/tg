@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { gameUrl, type GameCard } from "./data"
+import { bingoUrl, type GameCard } from "./data"
 import { formatDrawTime, formatMoney, toNumber } from "./format"
 import { pickLanguage } from "./i18n"
 
@@ -38,11 +38,11 @@ describe("pickLanguage", () => {
   })
 })
 
-describe("gameUrl", () => {
+describe("bingoUrl", () => {
   const base: GameCard = {
     key: "k",
-    kind: "wingo",
-    gameId: "17",
+    kind: "bingo",
+    gameId: "66ab",
     title: "",
     imageUrl: null,
     ticketPrice: 1,
@@ -51,15 +51,15 @@ describe("gameUrl", () => {
   }
 
   it("matches the website routes", () => {
-    expect(gameUrl("https://wingobingo.tv", "fa", base)).toBe("https://wingobingo.tv/fa/wingo/17")
-    expect(
-      gameUrl("https://wingobingo.tv", "en", { ...base, kind: "bingo", gameId: "66ab", bingoMode: "offline" }),
-    ).toBe("https://wingobingo.tv/en/bingo/offline?gameId=66ab")
+    expect(bingoUrl("https://wingobingo.tv", "fa", base)).toBe("https://wingobingo.tv/fa/bingo/live?gameId=66ab")
+    expect(bingoUrl("https://wingobingo.tv", "en", { ...base, bingoMode: "offline" })).toBe(
+      "https://wingobingo.tv/en/bingo/offline?gameId=66ab",
+    )
   })
 
   it("encodes the game id", () => {
-    expect(gameUrl("https://wingobingo.tv", "en", { ...base, gameId: "1/../x" })).toBe(
-      "https://wingobingo.tv/en/wingo/1%2F..%2Fx",
+    expect(bingoUrl("https://wingobingo.tv", "en", { ...base, gameId: "1&x=2" })).toBe(
+      "https://wingobingo.tv/en/bingo/live?gameId=1%26x%3D2",
     )
   })
 })

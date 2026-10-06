@@ -6,6 +6,23 @@ import en from "../locales/en/translation.json"
 import fa from "../locales/fa/translation.json"
 import fr from "../locales/fr/translation.json"
 import { AUTH_ERROR_COPY, GENERIC_ERROR, REOPEN_COPY } from "./auth/authFlow"
+import { COUNTDOWN_COPY, STATUS_COPY } from "./components/game"
+import { CART_PROBLEM_COPY, PRIZE_TIERS, PURCHASE_ERROR_COPY } from "./games/wingo"
+import { CANNOT_SEND_COPY, CHAT_ERROR_COPY } from "./live/chat"
+import { CONNECTION_COPY } from "./live/connection"
+
+const COPY_TABLES: Record<string, string>[] = [
+  AUTH_ERROR_COPY,
+  REOPEN_COPY,
+  STATUS_COPY,
+  COUNTDOWN_COPY,
+  CART_PROBLEM_COPY,
+  PURCHASE_ERROR_COPY,
+  CHAT_ERROR_COPY,
+  CANNOT_SEND_COPY,
+  CONNECTION_COPY,
+  Object.fromEntries(Object.entries(PRIZE_TIERS).map(([k, v]) => [k, v.label])),
+]
 
 const SRC = path.dirname(new URL(import.meta.url).pathname)
 
@@ -19,7 +36,7 @@ function sourceFiles(dir: string): string[] {
 
 /** Every literal passed to t("…") plus the copy tables that are translated at render time. */
 function usedKeys(): string[] {
-  const keys = new Set<string>([...Object.values(AUTH_ERROR_COPY), ...Object.values(REOPEN_COPY), GENERIC_ERROR])
+  const keys = new Set<string>([...COPY_TABLES.flatMap((table) => Object.values(table)), GENERIC_ERROR])
   for (const file of sourceFiles(SRC)) {
     const text = fs.readFileSync(file, "utf8")
     for (const m of text.matchAll(/\bt\(\s*"((?:[^"\\]|\\.)*)"/g)) keys.add(JSON.parse(`"${m[1]}"`) as string)

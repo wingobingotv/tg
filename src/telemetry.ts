@@ -7,7 +7,7 @@ import { config } from "./config"
  */
 
 type Level = "debug" | "info" | "warn" | "error"
-type EventType = "api.error" | "ui.error" | "auth.session"
+type EventType = "api.error" | "ui.error" | "auth.session" | "payment.flow" | "stream.room"
 
 const sessionId = (() => {
   try {

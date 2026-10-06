@@ -11,9 +11,12 @@ export type AppConfig = {
   debugTelemetryKey: string
   /** Google reCAPTCHA v3 site key, the same one wingobingo.tv uses. Empty = image captcha. */
   recaptchaSiteKey: string
+  /** LiveKit WebSocket URL the website's viewer uses (`NEXT_PUBLIC_LIVEKIT_WS_URL`). Empty = no live video. */
+  livekitUrl: string
 }
 
 const HTTPS_URL = /^https:\/\/[A-Za-z0-9.-]+(:\d{1,5})?(\/[A-Za-z0-9._~/-]*)?$/
+const WSS_URL = /^wss:\/\/[A-Za-z0-9.-]+(:\d{1,5})?$/
 const RECAPTCHA_SITE_KEY = /^[A-Za-z0-9_-]{20,100}$/
 
 export function isLanguage(value: unknown): value is Language {
@@ -46,6 +49,7 @@ export function parseConfig(raw: unknown): AppConfig | null {
   const botUsername = text(r.botUsername)
   const miniAppShortName = text(r.miniAppShortName)
   const recaptchaSiteKey = text(r.recaptchaSiteKey)
+  const livekitUrl = text(r.livekitUrl).replace(/\/+$/, "")
   return {
     playerApiUrl,
     siteUrl: url(r.siteUrl) || "https://wingobingo.tv",
@@ -55,6 +59,7 @@ export function parseConfig(raw: unknown): AppConfig | null {
     debugTelemetryUrl: telemetry ? debugTelemetryUrl : "",
     debugTelemetryKey: telemetry ? debugTelemetryKey : "",
     recaptchaSiteKey: RECAPTCHA_SITE_KEY.test(recaptchaSiteKey) ? recaptchaSiteKey : "",
+    livekitUrl: WSS_URL.test(livekitUrl) ? livekitUrl : "",
   }
 }
 

@@ -22,6 +22,7 @@ describe("parseConfig", () => {
       debugTelemetryUrl: "",
       debugTelemetryKey: "",
       recaptchaSiteKey: "",
+      livekitUrl: "",
     })
   })
 
@@ -35,6 +36,7 @@ describe("parseConfig", () => {
       debugTelemetryUrl: "https://api.wingobingo.tv/debug-telemetry/ingest",
       debugTelemetryKey: "abcdef123456",
       recaptchaSiteKey: "6LcTestSiteKeyForUnitTests_0123456789ab",
+      livekitUrl: "wss://quiz4win-918o76rk.livekit.cloud/",
     })
     expect(c).toEqual({
       playerApiUrl: "https://v2.api.wingobingo.tv",
@@ -45,6 +47,7 @@ describe("parseConfig", () => {
       debugTelemetryUrl: "https://api.wingobingo.tv/debug-telemetry/ingest",
       debugTelemetryKey: "abcdef123456",
       recaptchaSiteKey: "6LcTestSiteKeyForUnitTests_0123456789ab",
+      livekitUrl: "wss://quiz4win-918o76rk.livekit.cloud",
     })
   })
 
@@ -55,7 +58,10 @@ describe("parseConfig", () => {
       miniAppShortName: "x",
       defaultLang: "de",
       recaptchaSiteKey: "short\"><script>",
+      livekitUrl: "ws://insecure.example",
     })
+    expect(c?.livekitUrl).toBe("")
+    expect(parseConfig({ ...base, livekitUrl: "wss://x.example/path" })?.livekitUrl).toBe("")
     expect(c?.recaptchaSiteKey).toBe("")
     expect(c?.botUsername).toBe("")
     expect(c?.miniAppShortName).toBe("")

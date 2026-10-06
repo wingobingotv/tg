@@ -42,6 +42,7 @@ needs a line there too. Any value that spans more than one line is refused at st
 | `DEFAULT_LANG` | no | `en` | Fallback language (`en`, `ar`, `fa`, `fr`) |
 | `DEBUG_TELEMETRY_URL` / `DEBUG_TELEMETRY_KEY` | no | — | Live Debug ingest. The website uses the same pair |
 | `RECAPTCHA_V3_SITE_KEY` | no | — | Google reCAPTCHA v3 site key for sign-in / sign-up. Use the website's `NEXT_PUBLIC_RECAPTCHA_V3_SITE_KEY`; its domain list must cover tg.wingobingo.tv. Also opens the CSP to Google's reCAPTCHA script and frame. Empty = image captcha |
+| `LIVEKIT_WS_URL` | no | `wss://<project>.livekit.cloud` | Live show video. Same value as the website's `NEXT_PUBLIC_LIVEKIT_WS_URL`; no path. Opens the CSP `connect-src` to that LiveKit host (all of `*.livekit.cloud` for LiveKit Cloud, which moves viewers to regional hosts). Viewer tokens come from the Player API, which needs `LIVEKIT_API_KEY` / `LIVEKIT_API_SECRET` / `LIVEKIT_URL` in `backend/.env`. Empty = no live video; draws and results still show |
 | `OPENAI_API_KEY` / `OPENAI_TRANSLATE_MODEL` | no | — | Build-time translations |
 
 The **bot token is not in this repo**. It is `TELEGRAM_BOT_TOKEN` in the Player API (`backend`)

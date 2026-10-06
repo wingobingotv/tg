@@ -30,10 +30,10 @@ Audit date: 2026-10-06. Source of truth is the code, read in these repos:
 
 | Current Web Feature | Existing API/Service | Mini App Implementation | Backend Changes Required | Status | Dependencies |
 |---|---|---|---|---|---|
-| Home feed: next shows, live bar, latest replay, recent draws and winners | `/wingo/getTournaments` (`type:normal`/`special`), `/bingo/getGames` (4 calls), `/wingo/getWinners`, `/bingo/getWinners`; composed client-side in `WingoBingo/src/utils/home-v2/compose.ts` | Compact home: live-now card, next Wingo, next Bingo, recent winners. Fewer calls than web (one per type, not four Bingo calls) | None | Reuse | Game list endpoints |
-| Wingo list (normal and special tournaments) | `/wingo/getTournaments` `{type, page, count, tags?}` | List with countdowns from `drawDate`/`startTime`/`finishTime` | None | Reuse | — |
-| Wingo detail, countdown, ticketing state | `/wingo/getTournaments` `{gameId, type?}`; web polls every 30 s while `isTicketingOpen` | Detail screen; poll while open; refetch on Telegram `activated` (resume) | None | Reuse | Resume handling |
-| Private Wingo games | `/wingo/unlockPrivateGame` via site route `/api/private-game/unlock` (sets httpOnly cookie `wb_pg_<id>`) | Call `/wingo/unlockPrivateGame` directly; keep the token in memory and send `privateAccessToken` + `x-private-access-token` like `apiRequest.ts` | None (Player API route is Guest) | Reuse | — |
+| Home feed: next shows, live bar, latest replay, recent draws and winners | `/wingo/getTournaments` (`type:normal`/`special`), `/bingo/getGames` (4 calls), `/wingo/getWinners`, `/bingo/getWinners`; composed client-side in `WingoBingo/src/utils/home-v2/compose.ts` | Compact home: live-now card, next Wingo, next Bingo, recent winners. Fewer calls than web (one per type, not four Bingo calls) | None | Reuse — built (DEV-114) | Game list endpoints |
+| Wingo list (normal and special tournaments) | `/wingo/getTournaments` `{type, page, count, tags?}` | List with countdowns from `drawDate`/`startTime`/`finishTime` | None | Reuse — built (DEV-114) | — |
+| Wingo detail, countdown, ticketing state | `/wingo/getTournaments` `{gameId, type?}`; web polls every 30 s while `isTicketingOpen` | Detail screen; poll while open; refetch on Telegram `activated` (resume) | None | Reuse — built (DEV-114) | Resume handling |
+| Private Wingo games | `/wingo/unlockPrivateGame` via site route `/api/private-game/unlock` (sets httpOnly cookie `wb_pg_<id>`) | Call `/wingo/unlockPrivateGame` directly; keep the token in memory and send `privateAccessToken` + `x-private-access-token` like `apiRequest.ts` | None (Player API route is Guest) | Reuse — built (DEV-114) | — |
 | Draw reminders | `/wingo/getReminder`, `/wingo/setReminder`, `/wingo/cancelReminder`; email sent by Admin API cron `game_reminder_processor` | Same calls; add a Telegram delivery option | Telegram channel in the reminder sender | Reuse + backend | Telegram notifications |
 | Number statistics and "others' picks" | `/wingo/getTopChosenNumbers` `{}` or `{tournamentId, days}` | Same | None | Reuse | — |
 | Bingo list and daily games | `/bingo/getGames` `{drawType, status, page, count, tags?}`, `/bingo/getQuickPlayGames` | Same | None | Reuse | — |
@@ -45,13 +45,13 @@ Audit date: 2026-10-06. Source of truth is the code, read in these repos:
 
 | Current Web Feature | Existing API/Service | Mini App Implementation | Backend Changes Required | Status | Dependencies |
 |---|---|---|---|---|---|
-| Wingo manual pick | Client rules: 6 numbers of 1–47, 1 lucky of 1–10, max 14 tickets (`ChooseTicket/index.tsx`, `ticketing-b/types.ts`); `POST /wingo/setTickets` `{tournamentId, tickets:[{numbers, chanceNumber}], giftCode?}` | Touch number grid | **Expose the ranges and per-user limit in the game payload.** They are hardcoded in the web client today, and the brief forbids hardcoding them | Reuse + backend | Game config fields |
-| Quick Pick | Client-only shuffle `WingoBingo/src/utils/wingo.utils.ts` `getUniqueRandomNumbers` | Same client logic, using server-provided ranges | None beyond the row above | Reuse | Game config fields |
-| Multiple tickets, duplicate prevention | Client `src/utils/wingoTicketCombo.ts`; server `backend/src/utils/wingoTicketCombo.js` | Same | None | Reuse | — |
+| Wingo manual pick | Client rules: 6 numbers of 1–47, 1 lucky of 1–10, max 14 tickets (`ChooseTicket/index.tsx`, `ticketing-b/types.ts`); `POST /wingo/setTickets` `{tournamentId, tickets:[{numbers, chanceNumber}], giftCode?}` | Touch number grid | **Expose the ranges and per-user limit in the game payload.** They are hardcoded in the web client today, and the brief forbids hardcoding them | Reuse + backend — built (DEV-114) | Game config fields |
+| Quick Pick | Client-only shuffle `WingoBingo/src/utils/wingo.utils.ts` `getUniqueRandomNumbers` | Same client logic, using server-provided ranges | None beyond the row above | Reuse — built (DEV-114) | Game config fields |
+| Multiple tickets, duplicate prevention | Client `src/utils/wingoTicketCombo.ts`; server `backend/src/utils/wingoTicketCombo.js` | Same | None | Reuse — built (DEV-114) | — |
 | Ticketing modes A/B/C/D | `ticketingMode` on the game; four web UIs | One mobile flow that honours the mode's rules (not four UIs) | None | Reuse | — |
-| Free tickets | `freeTicketCount`/`freeTicketsRemaining` on the game; applied inside `setTickets` (`game_free_ticket_config/usage`) | Show allowance; server applies it | None | Reuse | — |
-| Gift or discount code at checkout | `/gift-codes/preview`; `giftCode` on `setTickets` | Same | None | Reuse | — |
-| Insufficient balance | `setTickets` returns `code 4501` | Offer top-up (existing methods, plus Stars where allowed) | None | Reuse | Wallet |
+| Free tickets | `freeTicketCount`/`freeTicketsRemaining` on the game; applied inside `setTickets` (`game_free_ticket_config/usage`) | Show allowance; server applies it | None | Reuse — built (DEV-114) | — |
+| Gift or discount code at checkout | `/gift-codes/preview`; `giftCode` on `setTickets` | Same | None | Reuse — built (DEV-114) | — |
+| Insufficient balance | `setTickets` returns `code 4501` | Offer top-up (existing methods, plus Stars where allowed) | None | Reuse — built (DEV-114) | Wallet |
 | Pay with card or crypto inside checkout | `TicketCheckoutModal`: Card (`/initPayment` mastercard → external gateway page), Crypto, Voucher | Crypto and Voucher in-app; card opens the gateway with `Telegram.WebApp.openLink` and resumes by polling `/getPayment` | Gateway return URL for the Mini App | Reuse + backend | Payment return design |
 | Bingo card choice and Quick Pick | `/bingo/getGameCardsById` `{gameId, cardModelId, choiceType}`; client picks randomly | Same | None | Reuse | — |
 | Bingo purchase | `POST /bingo/setTickets` `{gameId, tickets, giftCode?}` → `GameService.setBingoTickets` | Same | See security review: cards are assigned in the Bingo service before the MySQL charge, with no release on failure (UNVERIFIED) | Reuse | — |
@@ -62,12 +62,12 @@ Audit date: 2026-10-06. Source of truth is the code, read in these repos:
 | Current Web Feature | Existing API/Service | Mini App Implementation | Backend Changes Required | Status | Dependencies |
 |---|---|---|---|---|---|
 | My Rounds (Wingo / Bingo tabs) | `/getMyGames` `{page, count, status, type}` | Same | None | Reuse | — |
-| My tickets per game | `/wingo/getTickets` `{tournamentId, isPaid:true}`, `/bingo/getTickets` `{gameId}` | Same; outcome via the same logic as `wingoTicketOutcome.ts` | None | Reuse | — |
+| My tickets per game | `/wingo/getTickets` `{tournamentId, isPaid:true}`, `/bingo/getTickets` `{gameId}` | Same; outcome via the same logic as `wingoTicketOutcome.ts` | None | Reuse — built (DEV-114) | — |
 | Bingo results, drawn balls, line and full-house marking | `/bingo/getGameResults`, `/getGameDetails`; marking done client-side (`TicketsList.tsx`) | Same, server data only | None | Reuse | — |
 | Winners and results | `/wingo/getWinners`, `/bingo/getWinners`, `/getGameDetails` | Same | None | Reuse | — |
-| Live show (video) | LiveKit; token from **site route** `/api/token`; room from **site route** `/api/livekit/active-room`; rooms `wingo-N` / `bingo-X` via `showRoom` | Viewer in Telegram WebView | **Viewer token and active-room lookup must move to the Player API** (or be exposed from the site with CORS). The Mini App never mints tokens itself | Reuse + backend | LiveKit keys server-side; `showRoom` module |
-| Live data overlays (numbers, winners, awards) | LiveKit data messages (`winner-bubble`, `numbers-history`, `draw-finalized`, …) | Same handlers | None | Reuse | — |
-| Live chat | `/live-chat/messages` (2 s poll), `/live-chat/send`, `/live-chat/like` | Same | None | Reuse | — |
+| Live show (video) | LiveKit; token from **site route** `/api/token`; room from **site route** `/api/livekit/active-room`; rooms `wingo-N` / `bingo-X` via `showRoom` | Viewer in Telegram WebView | **Viewer token and active-room lookup must move to the Player API** (or be exposed from the site with CORS). The Mini App never mints tokens itself | Reuse + backend — built (DEV-115) | LiveKit keys server-side; `showRoom` module |
+| Live data overlays (numbers, winners, awards) | LiveKit data messages (`winner-bubble`, `numbers-history`, `draw-finalized`, …) | Same handlers | None | Reuse — built (DEV-115) | — |
+| Live chat | `/live-chat/messages` (2 s poll), `/live-chat/send`, `/live-chat/like` | Same | None | Reuse — built (DEV-115) | — |
 | Replays | `/getGameDetails` (`recordingUrl`), Bingo replay page | Same | None | Reuse | — |
 
 ## 4. Account and identity

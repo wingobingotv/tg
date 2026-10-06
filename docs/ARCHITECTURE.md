@@ -51,6 +51,18 @@ Admin API → Player API internal endpoints (bot health, Stars quotes, refunds)
   `WingoBingo/public`. Logical CSS properties only; `dir="ltr"` only on numbers, clocks and codes.
 - **i18n:** en / ar / fa / fr, with `t("English text")` keys like the site. Native-tone copy comes
   from `scripts/i18n-native-translate.mjs`, the same script as in the other repos.
+- **Screens:** Home and Profile tabs; Wingo game and Live show screens stack on top of them
+  (`src/navigation.tsx`), with Telegram's BackButton and `startapp=wingo_<id>` / `live_<id>`
+  deep links. The rules behind the screens live in `src/games/wingo.ts`: home feed status,
+  countdowns and sort, ticket rules from the game's `ticketRules`, prices with free tickets, and
+  purchase errors. They mirror the website's `resolveHomeGameStatus`, `hostedSort` and checkout.
+- **Live show:** `src/live/`. The Player API names the room (`POST /live/active-room`) and mints a
+  subscribe-only `viewer-…` token (`POST /live/viewer-token`), the same as the site's
+  `/api/livekit/active-room` and `/api/token`. Video and audio are picked like the site's
+  `livekitHostMedia.ts` (cinema publisher while the program source is CINEMATIC, otherwise the
+  presenter / AI presenter). Data messages drive the drawn-number board. Chat polls
+  `/live-chat/messages`. LiveKit (`livekit-client`, the website's version) is a lazy chunk,
+  loaded only when a show is opened.
 
 ## 4. Authentication and linking
 

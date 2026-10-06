@@ -1,5 +1,13 @@
 import { useQuery } from "@tanstack/react-query"
 import { post, setDisplayCurrency } from "./api"
+import {
+  parseOwnedTickets,
+  parseWingoGame,
+  parseWingoGameResult,
+  type OwnedTicket,
+  type WingoGame,
+  type WingoGameResult,
+} from "./games/wingo"
 
 /** Same endpoints and parameters as the website's hooks (useFetchNormalTournaments, useFetchBingoGames). */
 
@@ -19,7 +27,7 @@ export type Wallet = {
 
 export type GameCard = {
   key: string
-  kind: "wingo" | "bingo"
+  kind: "bingo"
   gameId: string
   title: string
   imageUrl: string | null
@@ -67,26 +75,74 @@ export function useWallet(enabled: boolean) {
   })
 }
 
-export function useWingoGames(enabled: boolean) {
+async function fetchWingoList(body: Record<string, unknown>): Promise<WingoGame[]> {
+  const res = await post<Envelope<{ tournaments?: unknown[] }>>("/wingo/getTournaments", { page: 1, count: 10, ...body })
+  return (res.data?.tournaments ?? []).map(parseWingoGame).filter((g): g is WingoGame => g !== null)
+}
+
+const FEED_POLL_MS = 60_000
+
+/**
+ * The website's home feed for Wingo (`useHomeV2Feed`): normal games, special
+ * shows, and the `mainlanding` featured shows, merged by game id.
+ */
+export function useWingoFeed(enabled: boolean) {
+  const opts = { enabled, refetchInterval: FEED_POLL_MS, refetchOnWindowFocus: false } as const
+  const normal = useQuery({ ...opts, queryKey: ["wingo", "normal"], queryFn: () => fetchWingoList({ type: "normal" }) })
+  const special = useQuery({ ...opts, queryKey: ["wingo", "special"], queryFn: () => fetchWingoList({ type: "special" }) })
+  const featured = useQuery({
+    ...opts,
+    queryKey: ["wingo", "featured"],
+    queryFn: () => fetchWingoList({ type: "special", tags: "mainlanding" }),
+  })
+
+  const games = new Map<string, WingoGame>()
+  for (const g of [...(normal.data ?? []), ...(special.data ?? [])]) if (!games.has(g.gameId)) games.set(g.gameId, g)
+  for (const g of featured.data ?? []) {
+    const known = games.get(g.gameId)
+    games.set(g.gameId, known ? { ...known, featured: true } : { ...g, featured: true })
+  }
+
+  return {
+    games: [...games.values()],
+    isPending: normal.isPending && special.isPending,
+    isError: normal.isError && special.isError,
+    refetch: () => {
+      void normal.refetch()
+      void special.refetch()
+      void featured.refetch()
+    },
+  }
+}
+
+export function wingoGameKey(gameId: string) {
+  return ["wingo", "game", gameId] as const
+}
+
+export function wingoTicketsKey(gameId: string) {
+  return ["wingo", "tickets", gameId] as const
+}
+
+/** One game, as the website's `useFetchSingleGameData`; null when it does not exist. */
+export function useWingoGame(gameId: string, refetchInterval: number | false) {
   return useQuery({
-    queryKey: ["wingo", "normal"],
+    queryKey: wingoGameKey(gameId),
+    refetchInterval,
+    queryFn: async (): Promise<WingoGameResult | null> => {
+      const res = await post<Envelope<unknown>>("/wingo/getTournaments", { gameId })
+      return parseWingoGameResult(res.data, gameId)
+    },
+  })
+}
+
+/** This player's paid tickets for a game. */
+export function useWingoTickets(gameId: string, enabled: boolean) {
+  return useQuery({
+    queryKey: wingoTicketsKey(gameId),
     enabled,
-    queryFn: async (): Promise<GameCard[]> => {
-      const res = await post<Envelope<{ tournaments?: Record<string, unknown>[] }>>("/wingo/getTournaments", {
-        type: "normal",
-        page: 1,
-        count: 10,
-      })
-      return (res.data?.tournaments ?? []).map((g) => ({
-        key: `wingo-${String(g.gameId)}`,
-        kind: "wingo",
-        gameId: String(g.gameId),
-        title: String(g.name ?? g.title ?? ""),
-        imageUrl: image(g.mobileImageUrl),
-        ticketPrice: g.ticketPrice,
-        prizePool: g.totalPrizePool,
-        drawDate: g.drawDate,
-      }))
+    queryFn: async (): Promise<OwnedTicket[]> => {
+      const res = await post<Envelope<unknown>>("/wingo/getTickets", { tournamentId: gameId, isPaid: true })
+      return parseOwnedTickets(res.data)
     },
   })
 }
@@ -136,9 +192,7 @@ export function useTelegramStatus() {
   })
 }
 
-/** Website page for a game, opened outside the Mini App until ticket purchase ships here. */
-export function gameUrl(siteUrl: string, lang: string, game: GameCard): string {
-  const id = encodeURIComponent(game.gameId)
-  if (game.kind === "wingo") return `${siteUrl}/${lang}/wingo/${id}`
-  return `${siteUrl}/${lang}/bingo/${game.bingoMode ?? "live"}?gameId=${id}`
+/** Website page for a Bingo game, opened outside the Mini App (Bingo play is not in the app yet). */
+export function bingoUrl(siteUrl: string, lang: string, game: GameCard): string {
+  return `${siteUrl}/${lang}/bingo/${game.bingoMode ?? "live"}?gameId=${encodeURIComponent(game.gameId)}`
 }
