@@ -151,6 +151,22 @@ Historical rows never recompute from current settings.
 
 ## 7. Admin → Telegram
 
+**Built so far (DEV-111):**
+
+- **Pages:** Overview, Linked Accounts, Sign-in Activity, Sign-in Settings and Bot, plus a
+  Telegram tab on the player dossier.
+- **Permission:** one `telegram` module. Unlinking also accepts `users`. The module is not in
+  any role preset, so only admins see it until a role is granted it.
+- **Admin API routes:** `/telegram-admin/*`. Bot reads and writes, and unlinking, go to the
+  Player API's `/internal/telegram/*` with `X-Internal-Key` (`PLAYER_API_INTERNAL_KEY`).
+- **Audit:** `admin_logs` type 25 is "Telegram unlinked" and type 26 is "Telegram settings
+  changed". Both appear on the dossier's admin log. The `telegram_config_audit` table below is
+  still planned for the Stars work.
+- **Bot token:** the bot card shows only whether it is set, never any part of it.
+- **Not built yet:** TOTP step-up for bot changes.
+
+**Planned:**
+
 - **Pages:** Overview, Bot Settings, Mini App Settings, Authentication, Stars (General, Pricing
   with live preview, Products, Profitability), Notifications (events and templates),
   Referrals, Collectibles, Security, Logs.

@@ -98,8 +98,9 @@ The Mini App therefore keeps its session token in `sessionStorage` and only call
 | `allowRelink` | 0 | 0 / 1 |
 
 The backend caches the row for 30 s, clamps every value to the range above, and falls back to
-the defaults if the table is not migrated yet. The admin page comes with the Admin → Telegram
-section.
+the defaults if the table is not migrated yet. Admins edit it at Admin → Telegram → Sign-in
+Settings. Admin → Telegram → Linked Accounts lists linked players and can unlink one (reason
+`admin` in `telegram_auth_events`). Sign-in Activity lists `telegram_auth_events`.
 
 ## Audit
 
