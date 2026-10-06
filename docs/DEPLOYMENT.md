@@ -48,26 +48,23 @@ The **bot token is not in this repo**. It is `TELEGRAM_BOT_TOKEN` in the Player 
 
 ## Server setup (once)
 
-1. **DNS and TLS.** Point the Mini App domain at the server and proxy it to the container from the
-   host nginx, like the other sites. The domain below is an example:
+1. **DNS and TLS.** The Mini App address is **`https://tg.wingobingo.tv`**. Point a DNS `A`
+   record for `tg.wingobingo.tv` at the server. Then install the host nginx site and add TLS,
+   like the other sites:
 
-   ```nginx
-   server {
-       listen 443 ssl http2;
-       server_name tg.wingobingo.tv;
-       # ssl_certificate / ssl_certificate_key as for the other WingoBingo sites
-
-       location / {
-           proxy_pass http://127.0.0.1:7400;
-           proxy_set_header Host $host;
-           proxy_set_header X-Forwarded-Proto $scheme;
-       }
-   }
+   ```bash
+   sudo cp deploy/nginx/tg.wingobingo.tv /etc/nginx/sites-available/tg.wingobingo.tv
+   sudo ln -s /etc/nginx/sites-available/tg.wingobingo.tv /etc/nginx/sites-enabled/
+   sudo nginx -t && sudo systemctl reload nginx
+   sudo certbot --nginx -d tg.wingobingo.tv
    ```
+
+   The site proxies to `127.0.0.1:7400`. If you change `MINIAPP_PORT` in `.env`, change it in
+   the site file too.
 
 2. **BotFather:**
    - `/newapp` (or Bot Settings → Configure Mini App) with the Mini App URL
-     `https://<domain>/`, and pick the short name for `TELEGRAM_MINIAPP_SHORT_NAME`;
+     `https://tg.wingobingo.tv/`, and pick the short name for `TELEGRAM_MINIAPP_SHORT_NAME`;
    - optionally set the menu button to open the same URL.
 3. **Player API:** set `TELEGRAM_BOT_TOKEN` in `backend/.env`, then
    `docker compose up -d --build` there. Until then sign-in answers `telegram_not_configured`.
@@ -76,6 +73,6 @@ The **bot token is not in this repo**. It is `TELEGRAM_BOT_TOKEN` in the Player 
 ## Checks after deploy
 
 - `curl -fsS http://127.0.0.1:7400/healthz` prints `ok`.
-- `curl -fsS https://<domain>/config.js` shows the configured values.
+- `curl -fsS https://tg.wingobingo.tv/config.js` shows the configured values.
 - Open the bot in Telegram and launch the Mini App. The Player API's `telegram_auth_events`
   table gets a `link_required` or `session_issued` row.

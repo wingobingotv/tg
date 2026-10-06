@@ -190,7 +190,7 @@ Historical rows never recompute from current settings.
 | D1 | **Can Stars fund real-money play at all?** Telegram's Stars and bot payment terms, and Apple and Google rules for in-app currency, must allow Stars for gaming deposits | Legal and platform risk; a ban would take down the bot | Legal sign-off before Stars goes live; build behind a flag that defaults off |
 | D2 | **Can Stars-funded balance be withdrawn as USDT?** | Paying out crypto for Stars turns Stars into cash, an AML and laundering channel and a likely policy breach | Credit Stars to non-withdrawable balance (or ticket purchases only) |
 | D3 | Gross value per Star and settlement loss starting values | Pricing correctness | Admin-entered; no defaults shipped |
-| D4 | Mini App repo host and domain (for example `tg.wingobingo.tv`) and which server runs it | Needed to create the repo, BotFather settings and CORS | — |
+| D4 | Mini App repo host and domain | Needed to create the repo, BotFather settings and CORS | **Decided:** repo `wingobingotv/tg`, address `https://tg.wingobingo.tv` (host nginx site `deploy/nginx/tg.wingobingo.tv`). The Player API allows any origin, so no CORS change |
 | D5 | **Compliance scope.** The site has no KYC flow, limits, self-exclusion, age or geo checks | The brief assumes they exist. Building them for Telegram only would make Telegram stricter than web; building them platform-wide changes the website | Shared server-side gate in `backend`, rolled out deliberately |
 | D6 | Collectibles / NFT: ship now (flag off) or after launch | Scope | After the core launch |
 | D7 | Admin Panel i18n: the panel is English-only with no i18n mechanism | Workspace rule asks for 4 languages | Treat the panel as exempt, as today |
