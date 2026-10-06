@@ -1,0 +1,8 @@
+node_modules
+dist
+.env
+.env.local
+.i18n-cache
+# npm cache and temp files used when the system disk is full
+.npm-cache
+.tmp
