@@ -74,14 +74,14 @@ Audit date: 2026-10-06. Source of truth is the code, read in these repos:
 
 | Current Web Feature | Existing API/Service | Mini App Implementation | Backend Changes Required | Status | Dependencies |
 |---|---|---|---|---|---|
-| Login (email or username + password) | `/user/login` `{login, password, type:"1", recaptchaToken}` → `userAuth`; captcha required server-side (`AuthController.verifyCaptchaProof`) | Used **once**, to prove ownership before linking Telegram | None for login itself | Reuse | reCAPTCHA site key must allow the Mini App domain |
+| Login (email or username + password) | `/user/login` `{login, password, type:"1", recaptchaToken}` → `userAuth`; captcha required server-side (`AuthController.verifyCaptchaProof`) | Used **once**, to prove ownership before linking Telegram. **Built** with the legacy image captcha (`GET /captcha`), which the backend still accepts, so no reCAPTCHA domain change is needed | None for login itself | Reuse — built | — |
 | Google sign-in | `/auth/google` `{idToken, recaptchaToken}` | Google One Tap inside Telegram WebView is unreliable; offer email login | None | Decision | — |
 | Registration | `/user/register` (captcha, referral fields); returns no session; site logs in afterwards | Same, then login, then link | None | Reuse | Referral deep link |
 | Email verification | None as a flow (`emailVerifiedAt` set by Google login and withdraw OTP only) | — | If "require email link" means verified email, a verification flow is new work | Not on web | Decision |
 | Password recovery | `/auth/forgot-password/request`, `/auth/forgot-password/verify` | Same | None | Reuse | — |
-| Telegram auto-login | — | Validate `initData` server-side, then mint a normal session for the linked user | New `/auth/telegram/*` endpoints, `telegram_identities` table | New | Bot token in backend env |
+| Telegram auto-login | — | **Built.** `src/auth/useTelegramAuth.ts` sends the raw `initData` once per open; the link screen signs in with email (legacy image captcha, `type:"2"`) and calls `/auth/telegram/link` | `/auth/telegram/*`, `telegram_identities` (backend `a9f3580`) | New — built | Bot token in backend env |
 | Profile, avatar, mobile, country | `/getUser`, `/updateUser`, `/uploadAvatar`, `/user/setMobileNumber`, `/user/setCountry`, `GET /avatar/:id` | Same | None | Reuse | — |
-| Logout | Client only (cookie delete); no server route | Server-side session revoke | Logout endpoint (sessions never expire today) | Reuse + backend | — |
+| Logout | Client only (cookie delete); no server route | **Built.** Profile → Sign out calls `/user/logout`; Disconnect Telegram calls `/auth/telegram/unlink` | `/user/logout` (backend `a9f3580`); Telegram sessions expire after `sessionMaxAgeSec` | Reuse + backend — built | — |
 | KYC | **No KYC upload or status UI on web.** Tables `user_nationalcards`, `user_cards`, `user_mobilenumbers` reviewed in Admin API only | Show status read-only if a player endpoint is added | Player KYC status endpoint | Not on web | Decision |
 | 2FA for players | None (TOTP exists for admins only) | — | — | Not on web | — |
 
@@ -89,7 +89,7 @@ Audit date: 2026-10-06. Source of truth is the code, read in these repos:
 
 | Current Web Feature | Existing API/Service | Mini App Implementation | Backend Changes Required | Status | Dependencies |
 |---|---|---|---|---|---|
-| Balance (cash, bonus, wagering) | `/getWalletBalance` | Same; refetch on resume and after every payment | None | Reuse | — |
+| Balance (cash, bonus, wagering) | `/getWalletBalance` | **Built** (Home → Wallet), in the player's `currency` from `/getUser`; refetch on Telegram `activated`. Refetch after payments comes with payments | None | Reuse — built | — |
 | Display currency | `/convertCurrency`; `currency` from `/getUser` | Same | None | Reuse | — |
 | Card deposit (Riverpe / IR gateway / Remitation) | `/getRiverpeDepositOptions`, `/initPayment` `{type:"mastercard"}` → external `paymentLink`, `/getPayment` | `openLink` to the gateway; poll `/getPayment` on return | Return URL that lands back in Telegram | Reuse + backend | Payment return design |
 | Crypto deposit | `/getCryptocurrencies`, `/getCryptoMinAllowedAmount`, `/initPayment` `{type:"crypto"}`, `/getPayment` (15 s poll) | Same | None | Reuse | — |
@@ -125,7 +125,7 @@ Audit date: 2026-10-06. Source of truth is the code, read in these repos:
 | Current Web Feature | Existing API/Service | Mini App Implementation | Backend Changes Required | Status | Dependencies |
 |---|---|---|---|---|---|
 | Terms, Privacy, AML, KYC, Refund, Responsible Gambling pages | Static `WingoBingo/content/legal/{lang}/*.json` | Same content (shared source) | None | Reuse | Content sharing decision |
-| Account ban | Checked at login only; **not** checked on authenticated requests (`AuthMiddleware.authenticate`) | Inherits the gap | Check `isBanned` on authenticated requests (fixes web too) | Decision | Owner approval |
+| Account ban | Checked on every authenticated request since backend `a9f3580` (`UserService.getUserId`) | Banned players get 401 and the "session ended" screen; sign-in answers `user_is_banned` and shows the account notice | Done (fixes web too) | Reuse — built | — |
 | Self-exclusion, deposit and betting limits | **None** | — | New shared compliance gate if wanted | Not on web | Decision D5 |
 | Age verification | Text-only "18+" | — | — | Not on web | Decision D5 |
 | Restricted jurisdictions | Not enforced (country only routes payment rails) | Stars availability by country (brief requirement) | Country rules for Stars; optional platform-wide gate | New | Decision D5 |

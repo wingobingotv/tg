@@ -11,6 +11,29 @@ wb_fail() {
   exit 1
 }
 
+# grep checks line by line, so a value holding a newline could pass on one
+# good line and smuggle the next one into config.js. Refuse those first.
+for wb_name in PLAYER_API_URL SITE_URL TELEGRAM_BOT_USERNAME TELEGRAM_MINIAPP_SHORT_NAME \
+  DEFAULT_LANG DEBUG_TELEMETRY_URL DEBUG_TELEMETRY_KEY; do
+  eval "wb_value=\${$wb_name:-}"
+  case "$wb_value" in
+    *"
+"*) wb_fail "$wb_name must be a single line" ;;
+  esac
+done
+
+# grep checks line by line, so a value with a newline could pass on one good
+# line and smuggle a second one into config.js. Refuse such values first.
+for wb_var in PLAYER_API_URL SITE_URL TELEGRAM_BOT_USERNAME TELEGRAM_MINIAPP_SHORT_NAME \
+  DEFAULT_LANG DEBUG_TELEMETRY_URL DEBUG_TELEMETRY_KEY; do
+  eval "wb_val=\${$wb_var:-}"
+  case "$wb_val" in
+    *"
+"*|*"$(printf '\r')"*) wb_fail "$wb_var must be a single line" ;;
+  esac
+done
+unset wb_var wb_val
+
 wb_https_url() {
   printf '%s' "$2" | grep -Eq '^https://[A-Za-z0-9.-]+(:[0-9]{1,5})?(/[A-Za-z0-9._~/-]*)?$' \
     || wb_fail "$1 must be an https:// URL without query or fragment (got '$2')"

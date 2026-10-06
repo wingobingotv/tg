@@ -25,6 +25,10 @@ All settings come from `.env` next to `docker-compose.yml`. Copy `.env.example` 
 Changing a value in `.env` needs only `docker compose up -d` (a restart), not a rebuild. The two
 `OPENAI_*` values are the exception: they are used only at build time.
 
+`docker-compose.yml` passes the runtime variables one by one (`environment:`), not the whole
+`.env` file, so `OPENAI_API_KEY` never reaches the running container. A new runtime variable
+needs a line there too. Any value that spans more than one line is refused at start.
+
 ## `.env`
 
 | Variable | Required | Example | Used for |

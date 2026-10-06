@@ -11,9 +11,17 @@ services:
     image: wingobingo-telegram:latest
     container_name: wingobingo-telegram
     restart: unless-stopped
-    # Classic list form; the object form (path/required) breaks docker-compose v1.
-    env_file:
-      - .env
+    # Listed one by one instead of env_file, so build-only secrets such as
+    # OPENAI_API_KEY never reach the running container. Compose reads them
+    # from .env; the start script validates them.
+    environment:
+      PLAYER_API_URL: ${PLAYER_API_URL:-}
+      SITE_URL: ${SITE_URL:-}
+      TELEGRAM_BOT_USERNAME: ${TELEGRAM_BOT_USERNAME:-}
+      TELEGRAM_MINIAPP_SHORT_NAME: ${TELEGRAM_MINIAPP_SHORT_NAME:-}
+      DEFAULT_LANG: ${DEFAULT_LANG:-en}
+      DEBUG_TELEMETRY_URL: ${DEBUG_TELEMETRY_URL:-}
+      DEBUG_TELEMETRY_KEY: ${DEBUG_TELEMETRY_KEY:-}
     ports:
       - "${MINIAPP_BIND:-127.0.0.1}:${MINIAPP_PORT:-7400}:8080"
     healthcheck:
