@@ -64,7 +64,7 @@ export function stateFromSessionResponse(res: unknown): AuthState {
   return { kind: "unavailable" }
 }
 
-/** Answer of POST /auth/telegram/link (after a fresh email login). */
+/** Answer of POST /auth/telegram/link (after a fresh email login) or /auth/telegram/connect with `confirm`. */
 export function stateFromLinkResponse(res: unknown): AuthState | null {
   if (!res || typeof res !== "object") return null
   const r = res as Record<string, unknown>
@@ -77,14 +77,45 @@ export function stateFromLinkResponse(res: unknown): AuthState | null {
 }
 
 /**
+ * Connect codes come from the website after a Google sign-in, either in the
+ * deep link (`startapp=lk_ABCDEFGH`) or typed as `ABCD-EFGH`. Same alphabet
+ * as the Player API (no 0/O/1/I/L); the server decides whether it is valid.
+ */
+const CONNECT_CODE_CHARS = /[^ABCDEFGHJKMNPQRSTUVWXYZ23456789]/g
+const CONNECT_START_RE = /^lk_([ABCDEFGHJKMNPQRSTUVWXYZ23456789]{8})$/
+
+export function connectCodeFromStartParam(startParam: string | null): string | null {
+  const code = startParam ? CONNECT_START_RE.exec(startParam)?.[1] : undefined
+  return code ? formatConnectCodeInput(code) : null
+}
+
+/** Live formatting for the code field: upper case, allowed characters, `XXXX-XXXX`. */
+export function formatConnectCodeInput(value: string): string {
+  const s = value.toUpperCase().replace(CONNECT_CODE_CHARS, "").slice(0, 8)
+  return s.length > 4 ? `${s.slice(0, 4)}-${s.slice(4)}` : s
+}
+
+export function isCompleteConnectCode(value: string): boolean {
+  return formatConnectCodeInput(value).length === 9
+}
+
+/** Answer of POST /auth/telegram/connect without `confirm`: which account the code is for. */
+export function connectPreviewFrom(res: unknown): { maskedEmail: string } | null {
+  if (!res || typeof res !== "object") return null
+  const r = res as Record<string, unknown>
+  if (r.success !== true || r.status !== "confirm") return null
+  const account = (r.account && typeof r.account === "object" ? r.account : {}) as Record<string, unknown>
+  return { maskedEmail: str(account.maskedEmail) }
+}
+
+/**
  * English copy for a login / register / link failure code. The English text is
  * the translation key (locales/<lang>/translation.json).
  */
 export const AUTH_ERROR_COPY: Record<string, string> = {
   invalid_login: "The email or password is not correct.",
   wrong_captcha: "The security code is not correct. Try the new one.",
-  use_google_login:
-    "This account signs in with Google. Set a password with “Forgot password” on the website, then sign in here.",
+  use_google_login: "This account signs in with Google. Use “Continue with Google” instead.",
   user_could_not_be_empty: "Enter your email.",
   password_could_not_be_empty: "Enter your password.",
   user_length_too_long: "This email is too long.",
@@ -103,6 +134,8 @@ export const AUTH_ERROR_COPY: Record<string, string> = {
   link_ticket_invalid: "This connection request has expired. Close and reopen the app from the bot.",
   telegram_already_linked: "This Telegram account is already connected to another WingoBingo account.",
   account_already_linked: "This WingoBingo account is already connected to another Telegram account.",
+  code_invalid: "This code is not correct or has expired. Get a new one in the browser.",
+  too_many_attempts: "Too many wrong codes. Wait a few minutes, then try again.",
   rate_limited: "Too many attempts. Wait a minute and try again.",
   network: "Connection problem. Check your internet and try again.",
 }

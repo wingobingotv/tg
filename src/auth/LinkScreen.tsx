@@ -1,14 +1,22 @@
-import { useCallback, useEffect, useState, type FormEvent } from "react"
+import { useCallback, useEffect, useRef, useState, type FormEvent } from "react"
 import { useTranslation } from "react-i18next"
 import { ApiError, get, post, type ResultMessage } from "../api"
 import { Alert, Button, Field, Logo } from "../components/ui"
 import { config } from "../config"
 import { currentLanguage } from "../i18n"
 import { haptic, openExternal } from "../telegram"
-import { authErrorCopy, stateFromLinkResponse, type AuthState } from "./authFlow"
+import {
+  authErrorCopy,
+  connectCodeFromStartParam,
+  connectPreviewFrom,
+  formatConnectCodeInput,
+  isCompleteConnectCode,
+  stateFromLinkResponse,
+  type AuthState,
+} from "./authFlow"
 
 type LinkRequired = Extract<AuthState, { kind: "link_required" }>
-type Mode = "intro" | "login" | "register"
+type Mode = "intro" | "login" | "register" | "google" | "confirm"
 type Captcha = { key: string; image: string }
 
 function useCaptcha() {
@@ -42,9 +50,12 @@ function errorCode(err: unknown): string {
 
 export function LinkScreen({ state, onLinked }: { state: LinkRequired; onLinked: (next: AuthState) => void }) {
   const { t } = useTranslation()
-  const [mode, setMode] = useState<Mode>("intro")
+  // Opened from the website's "Open Telegram" button after a Google sign-in.
+  const [linkedCode] = useState(() => connectCodeFromStartParam(state.startParam))
+  const [mode, setMode] = useState<Mode>(linkedCode ? "google" : "intro")
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState("")
+  const [errorKey, setErrorKey] = useState("")
   const [notice, setNotice] = useState("")
   const { captcha, failed: captchaFailed, refresh: refreshCaptcha } = useCaptcha()
 
@@ -55,25 +66,110 @@ export function LinkScreen({ state, onLinked }: { state: LinkRequired; onLinked:
   const [password2, setPassword2] = useState("")
   const [code, setCode] = useState("")
   const [acceptTerms, setAcceptTerms] = useState(false)
+  const [connectCode, setConnectCode] = useState(linkedCode ?? "")
+  const [maskedEmail, setMaskedEmail] = useState("")
 
+  const needsCaptcha = mode === "login" || mode === "register"
   useEffect(() => {
-    if (mode !== "intro") void refreshCaptcha()
-  }, [mode, refreshCaptcha])
+    if (needsCaptcha) void refreshCaptcha()
+  }, [needsCaptcha, refreshCaptcha])
 
   const ticketExpired = () => state.linkTicketExpiresAt !== null && Date.now() >= state.linkTicketExpiresAt
 
   const fail = (codeOrEmpty: unknown) => {
     setError(t(authErrorCopy(codeOrEmpty)))
+    setErrorKey(typeof codeOrEmpty === "string" ? codeOrEmpty : "")
     haptic("error")
     setCode("")
-    void refreshCaptcha()
+    if (needsCaptcha) void refreshCaptcha()
   }
 
   const switchMode = (next: Mode) => {
     setMode(next)
     setError("")
+    setErrorKey("")
     setNotice("")
     setCode("")
+  }
+
+  const openGoogleSignIn = () => openExternal(`${config?.siteUrl ?? ""}/${currentLanguage()}/connect-telegram`)
+
+  /** Without `confirm` the Player API only says which account the code belongs to. */
+  const checkConnectCode = async (value: string) => {
+    if (busy) return
+    if (ticketExpired()) {
+      setError(t(authErrorCopy("link_ticket_invalid")))
+      return
+    }
+    setBusy(true)
+    setError("")
+    setErrorKey("")
+    try {
+      const res = await post<ResultMessage>(
+        "/auth/telegram/connect",
+        { linkTicket: state.linkTicket, code: value },
+        { auth: false },
+      )
+      const preview = connectPreviewFrom(res)
+      if (preview) {
+        setMaskedEmail(preview.maskedEmail)
+        setMode("confirm")
+        return
+      }
+      fail(res.message)
+    } catch (err) {
+      fail(errorCode(err))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  // Latest handler for the one-time deep-link check below.
+  const checkRef = useRef(checkConnectCode)
+  useEffect(() => {
+    checkRef.current = checkConnectCode
+  })
+  useEffect(() => {
+    if (linkedCode) void checkRef.current(linkedCode)
+  }, [linkedCode])
+
+  const submitConnectCode = (e: FormEvent) => {
+    e.preventDefault()
+    if (!isCompleteConnectCode(connectCode)) {
+      setError(t("Enter the 8-character code from the browser."))
+      return
+    }
+    void checkConnectCode(connectCode)
+  }
+
+  const confirmConnect = async () => {
+    if (busy) return
+    if (ticketExpired()) {
+      setError(t(authErrorCopy("link_ticket_invalid")))
+      return
+    }
+    setBusy(true)
+    setError("")
+    try {
+      const res = await post<ResultMessage>(
+        "/auth/telegram/connect",
+        { linkTicket: state.linkTicket, code: connectCode, confirm: true },
+        { auth: false },
+      )
+      const next = stateFromLinkResponse(res)
+      if (next) {
+        haptic("success")
+        onLinked(next)
+        return
+      }
+      setMode("google")
+      setConnectCode("")
+      fail(res.message)
+    } catch (err) {
+      fail(errorCode(err))
+    } finally {
+      setBusy(false)
+    }
   }
 
   const submitLogin = async (e: FormEvent) => {
@@ -191,9 +287,80 @@ export function LinkScreen({ state, onLinked }: { state: LinkRequired; onLinked:
           {t("Connect your WingoBingo account once. After that, Telegram opens your account directly.")}
         </p>
         <div className="stack">
-          <Button onClick={() => switchMode("login")}>{t("Sign in with email")}</Button>
+          <Button onClick={() => switchMode("google")}>{t("Continue with Google")}</Button>
+          <Button variant="secondary" onClick={() => switchMode("login")}>
+            {t("Sign in with email")}
+          </Button>
           <Button variant="secondary" onClick={() => switchMode("register")}>
             {t("Create an account")}
+          </Button>
+        </div>
+      </main>
+    )
+  }
+
+  if (mode === "google") {
+    return (
+      <main className="link-screen">
+        <Logo size={44} />
+        <h1>{t("Continue with Google")}</h1>
+        <p className="muted">
+          {t("Google sign-in does not work inside Telegram, so it opens in your browser.")}
+        </p>
+        {error ? <Alert tone="error">{error}</Alert> : null}
+        <ol className="steps">
+          <li>{t("Open the browser and sign in with Google.")}</li>
+          <li>{t("Tap “Open Telegram” there, or type the code it shows below.")}</li>
+        </ol>
+        <form className="stack" onSubmit={submitConnectCode} noValidate>
+          <Button type="button" onClick={openGoogleSignIn}>
+            {t("Open the browser")}
+          </Button>
+          <Field
+            label={t("Code from the browser")}
+            value={connectCode}
+            onChange={(e) => setConnectCode(formatConnectCodeInput(e.target.value))}
+            placeholder="ABCD-EFGH"
+            autoComplete="one-time-code"
+            autoCapitalize="characters"
+            inputMode="text"
+            dir="ltr"
+            maxLength={9}
+          />
+          <Button type="submit" variant="secondary" busy={busy}>
+            {t("Continue")}
+          </Button>
+          <Button type="button" variant="link" onClick={() => switchMode("intro")}>
+            {t("Back")}
+          </Button>
+        </form>
+      </main>
+    )
+  }
+
+  if (mode === "confirm") {
+    return (
+      <main className="link-screen">
+        <Logo size={44} />
+        <h1>{t("Connect this account?")}</h1>
+        {error ? <Alert tone="error">{error}</Alert> : null}
+        <p className="confirm-account" dir="ltr">
+          {maskedEmail}
+        </p>
+        <p className="muted">{t("From now on, Telegram opens this WingoBingo account directly.")}</p>
+        <Alert tone="info">{t("Only continue if you just signed in to this account in your own browser.")}</Alert>
+        <div className="stack">
+          <Button busy={busy} onClick={() => void confirmConnect()}>
+            {t("Connect")}
+          </Button>
+          <Button
+            variant="link"
+            onClick={() => {
+              setConnectCode("")
+              switchMode("google")
+            }}
+          >
+            {t("This is not my account")}
           </Button>
         </div>
       </main>
@@ -206,6 +373,11 @@ export function LinkScreen({ state, onLinked }: { state: LinkRequired; onLinked:
       <h1>{mode === "login" ? t("Sign in to connect Telegram") : t("Create your account")}</h1>
       {notice ? <Alert tone="info">{notice}</Alert> : null}
       {error ? <Alert tone="error">{error}</Alert> : null}
+      {errorKey === "use_google_login" ? (
+        <Button type="button" onClick={() => switchMode("google")}>
+          {t("Continue with Google")}
+        </Button>
+      ) : null}
 
       {mode === "login" ? (
         <form className="stack" onSubmit={(e) => void submitLogin(e)} noValidate>

@@ -94,6 +94,23 @@ p {
   text-align: start;
 }
 
+/* Continue with Google: what to do in the browser. */
+.steps {
+  margin: 0;
+  padding-inline-start: 1.25rem;
+  inline-size: 100%;
+  text-align: start;
+  line-height: 1.5;
+  color: var(--home-text-muted);
+}
+
+.confirm-account {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 700;
+  word-break: break-all;
+}
+
 /* Buttons */
 .btn {
   display: inline-flex;

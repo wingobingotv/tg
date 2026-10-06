@@ -1,5 +1,46 @@
 import { describe, expect, it } from "vitest"
-import { authErrorCopy, GENERIC_ERROR, stateFromLinkResponse, stateFromSessionResponse } from "./authFlow"
+import {
+  authErrorCopy,
+  connectCodeFromStartParam,
+  connectPreviewFrom,
+  formatConnectCodeInput,
+  GENERIC_ERROR,
+  isCompleteConnectCode,
+  stateFromLinkResponse,
+  stateFromSessionResponse,
+} from "./authFlow"
+
+describe("connect codes (Continue with Google)", () => {
+  it("reads the code from the deep-link start parameter only", () => {
+    expect(connectCodeFromStartParam("lk_ABCDEFGH")).toBe("ABCD-EFGH")
+    expect(connectCodeFromStartParam("lk_ABCDEFG0")).toBeNull()
+    expect(connectCodeFromStartParam("ref_ABCDEFGH")).toBeNull()
+    expect(connectCodeFromStartParam(null)).toBeNull()
+  })
+
+  it("formats what the player types", () => {
+    expect(formatConnectCodeInput("abcd")).toBe("ABCD")
+    expect(formatConnectCodeInput("ab cd-ef gh")).toBe("ABCD-EFGH")
+    expect(formatConnectCodeInput("ABCDEFGHJK")).toBe("ABCD-EFGH")
+    expect(formatConnectCodeInput("O0I1L")).toBe("")
+    expect(isCompleteConnectCode("abcdefgh")).toBe(true)
+    expect(isCompleteConnectCode("ABCD-EFG")).toBe(false)
+  })
+
+  it("reads the confirm preview and nothing else", () => {
+    expect(
+      connectPreviewFrom({ success: true, status: "confirm", account: { maskedEmail: "r•••@gmail.com" } }),
+    ).toEqual({ maskedEmail: "r•••@gmail.com" })
+    expect(connectPreviewFrom({ success: true, status: "linked", userAuth: "x" })).toBeNull()
+    expect(connectPreviewFrom({ success: false, message: "code_invalid" })).toBeNull()
+  })
+
+  it("has copy for the new refusal codes", () => {
+    expect(authErrorCopy("code_invalid")).not.toBe(GENERIC_ERROR)
+    expect(authErrorCopy("too_many_attempts")).not.toBe(GENERIC_ERROR)
+    expect(authErrorCopy("use_google_login")).toContain("Continue with Google")
+  })
+})
 
 const TOKEN = "a".repeat(64)
 

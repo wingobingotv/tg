@@ -75,7 +75,7 @@ Audit date: 2026-10-06. Source of truth is the code, read in these repos:
 | Current Web Feature | Existing API/Service | Mini App Implementation | Backend Changes Required | Status | Dependencies |
 |---|---|---|---|---|---|
 | Login (email or username + password) | `/user/login` `{login, password, type:"1", recaptchaToken}` → `userAuth`; captcha required server-side (`AuthController.verifyCaptchaProof`) | Used **once**, to prove ownership before linking Telegram. **Built** with the legacy image captcha (`GET /captcha`), which the backend still accepts, so no reCAPTCHA domain change is needed | None for login itself | Reuse — built | — |
-| Google sign-in | `/auth/google` `{idToken, recaptchaToken}` | Google One Tap inside Telegram WebView is unreliable; offer email login | None | Decision | — |
+| Google sign-in | `/auth/google` `{idToken, recaptchaToken}` | "Continue with Google": sign-in on wingobingo.tv in the system browser (Google blocks embedded browsers), back via a one-time connect code | `/auth/telegram/connect-code`, `/auth/telegram/connect`, `telegram_connect_codes`; site page `/connect-telegram` | Built (DEV-112) | — |
 | Registration | `/user/register` (captcha, referral fields); returns no session; site logs in afterwards | Same, then login, then link | None | Reuse | Referral deep link |
 | Email verification | None as a flow (`emailVerifiedAt` set by Google login and withdraw OTP only) | — | If "require email link" means verified email, a verification flow is new work | Not on web | Decision |
 | Password recovery | `/auth/forgot-password/request`, `/auth/forgot-password/verify` | Same | None | Reuse | — |

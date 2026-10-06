@@ -18,6 +18,8 @@ Sign-in is off until `TELEGRAM_BOT_TOKEN` is set in the backend `.env`.
 |---|---|---|---|
 | `/auth/telegram/session` | none (guest endpoint) | `{ initData }` | `status: "linked"`, `userAuth`, `sessionExpiresAt`, `startParam`; or `status: "link_required"`, `linkTicket`, `linkTicketExpiresAt`, `telegramUser { firstName, username }`, `startParam` |
 | `/auth/telegram/link` | fresh email-login session | `{ linkTicket }` | `userAuth` (new Telegram session), `sessionExpiresAt`, `startParam` |
+| `/auth/telegram/connect-code` | fresh website session (e.g. right after Google sign-in) | — | `code` (`ABCD-EFGH`), `expiresAt`, `openUrl` (t.me link with `startapp=lk_<code>`, or null) |
+| `/auth/telegram/connect` | none (guest endpoint) | `{ linkTicket, code, confirm }` | without `confirm`: `status: "confirm"`, `account { maskedEmail }`; with `confirm: true`: `status: "linked"`, `userAuth`, `sessionExpiresAt`, `startParam` |
 | `/auth/telegram/unlink` | any player session | — | `message: telegram_unlinked` or `telegram_not_linked` |
 | `/auth/telegram/status` | any player session | — | `linked`, `identity { telegramUserId, username, firstName, linkedAt }` |
 | `/user/logout` | any player session | — | ends the session in `Authorization` |
@@ -36,6 +38,8 @@ Failures come back as `{ success: false, message: <code> }`, like `/user/login`:
 | `link_ticket_invalid` | Ticket unknown, used or expired | Restart from `/auth/telegram/session` |
 | `telegram_already_linked` | This Telegram account belongs to another user | Explain; offer support |
 | `account_already_linked` | The account already has another Telegram id | Explain; relink only if enabled |
+| `code_invalid` | Connect code unknown, used or expired | Get a new code in the browser |
+| `too_many_attempts` | 5 wrong connect codes for this Telegram user within the ticket TTL | Wait, then try again |
 
 ## initData check (`src/utils/telegramInitData.js`)
 
@@ -75,6 +79,34 @@ The Mini App therefore keeps its session token in `sessionStorage` and only call
      `telegram_identities` settle concurrent attempts.
 4. The email session used to prove the account is deleted and an expiring Telegram session
    (`sessions.sessionType = 3`) is returned instead.
+
+## Continue with Google (connect codes)
+
+Google refuses sign-in inside embedded browsers (`disallowed_useragent`), which is what Telegram
+opens Mini Apps in, and Google-only accounts have no password. So Google sign-in happens in the
+system browser and comes back as a one-time code:
+
+1. The Mini App opens `https://wingobingo.tv/<lang>/connect-telegram` with `openLink`. The URL
+   carries nothing secret.
+2. The player signs in there with the site's Google button (`/auth/google`).
+3. The site calls `/auth/telegram/connect-code` with that fresh session (same freshness rule as
+   linking; a Telegram session is refused). The Player API stores the SHA-256 of an 8-character
+   code (alphabet without 0/O/1/I/L) in `telegram_connect_codes`, valid 10 minutes and once. A
+   new code replaces the account's unused ones. `code_issued` is logged.
+4. The site shows the code and, when the bot has `TELEGRAM_MINIAPP_SHORT_NAME` (backend `.env`)
+   or a Main Mini App, an "Open Telegram" button: `https://t.me/<bot>[/<app>]?startapp=lk_<code>`.
+   The bot username comes from `getMe`, never from the client.
+5. The Mini App gets the code from the signed `start_param`, or the player types it.
+   `/auth/telegram/connect` without `confirm` answers the account's masked email
+   (`r•••@gmail.com`); the player confirms, then the call with `confirm: true` links it with the
+   same rules as `/auth/telegram/link`. Ticket and code are claimed in one transaction.
+
+Why the link is made in the Mini App, not on the website: whoever redeems the code has proved
+their Telegram account with initData. Someone who forwards their own Mini App link to a victim
+gets nothing: the victim's browser never sees a link ticket. The confirm screen covers the
+reverse trick (a stranger's "Open Telegram" link would show the stranger's email). Wrong codes are
+counted per Telegram user from `link_refused`/`code_invalid` events; after 5 within the ticket TTL
+every attempt answers `too_many_attempts`.
 
 ## Sessions
 
