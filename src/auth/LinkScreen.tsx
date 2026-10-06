@@ -5,6 +5,7 @@ import { Alert, Button, Field, Logo } from "../components/ui"
 import { config } from "../config"
 import { currentLanguage } from "../i18n"
 import { haptic, openExternal } from "../telegram"
+import { recaptchaEnabled, useRecaptchaToken } from "./recaptcha"
 import {
   authErrorCopy,
   connectCodeFromStartParam,
@@ -69,7 +70,8 @@ export function LinkScreen({ state, onLinked }: { state: LinkRequired; onLinked:
   const [connectCode, setConnectCode] = useState(linkedCode ?? "")
   const [maskedEmail, setMaskedEmail] = useState("")
 
-  const needsCaptcha = mode === "login" || mode === "register"
+  const getRecaptcha = useRecaptchaToken()
+  const needsCaptcha = !recaptchaEnabled && (mode === "login" || mode === "register")
   useEffect(() => {
     if (needsCaptcha) void refreshCaptcha()
   }, [needsCaptcha, refreshCaptcha])
@@ -172,6 +174,23 @@ export function LinkScreen({ state, onLinked }: { state: LinkRequired; onLinked:
     }
   }
 
+  /** reCAPTCHA v3 token when the site key is set (as on the website), else the image code. */
+  const captchaProof = async (
+    action: "login" | "register",
+  ): Promise<{ recaptchaToken: string } | { captcha: string; captchaKey: string } | null> => {
+    if (!recaptchaEnabled) return { captcha: code.trim().toUpperCase(), captchaKey: captcha?.key ?? "" }
+    const recaptchaToken = await getRecaptcha(action)
+    if (recaptchaToken) return { recaptchaToken }
+    setError(t("Security check isn't ready yet, please try again in a moment"))
+    setErrorKey("")
+    haptic("warning")
+    return null
+  }
+
+  /** With reCAPTCHA, `wrong_captcha` means Google refused the token, not a mistyped code. */
+  const captchaFailure = (message: unknown) =>
+    recaptchaEnabled && message === "wrong_captcha" ? "recaptcha_failed" : message
+
   const submitLogin = async (e: FormEvent) => {
     e.preventDefault()
     if (busy) return
@@ -182,13 +201,15 @@ export function LinkScreen({ state, onLinked }: { state: LinkRequired; onLinked:
     setBusy(true)
     setError("")
     try {
+      const proof = await captchaProof("login")
+      if (!proof) return
       const login = await post<ResultMessage & { userAuth?: unknown }>(
         "/user/login",
-        { login: email.trim(), password, type: "2", captcha: code.trim().toUpperCase(), captchaKey: captcha?.key ?? "" },
+        { login: email.trim(), password, type: "2", ...proof },
         { auth: false },
       )
       if (login.success !== true || typeof login.userAuth !== "string") {
-        fail(login.message)
+        fail(captchaFailure(login.message))
         return
       }
       const emailSession = login.userAuth
@@ -219,6 +240,8 @@ export function LinkScreen({ state, onLinked }: { state: LinkRequired; onLinked:
     setBusy(true)
     setError("")
     try {
+      const proof = await captchaProof("register")
+      if (!proof) return
       const res = await post<ResultMessage>(
         "/user/register",
         {
@@ -227,13 +250,12 @@ export function LinkScreen({ state, onLinked }: { state: LinkRequired; onLinked:
           userName: userName.trim(),
           password1: password,
           password2,
-          captcha: code.trim().toUpperCase(),
-          captchaKey: captcha?.key ?? "",
+          ...proof,
         },
         { auth: false },
       )
       if (res.success !== true) {
-        fail(res.message)
+        fail(captchaFailure(res.message))
         return
       }
       haptic("success")
@@ -401,7 +423,7 @@ export function LinkScreen({ state, onLinked }: { state: LinkRequired; onLinked:
             required
             maxLength={50}
           />
-          {captchaField}
+          {needsCaptcha ? captchaField : null}
           <Button type="submit" busy={busy}>
             {t("Sign in and connect")}
           </Button>
@@ -456,7 +478,7 @@ export function LinkScreen({ state, onLinked }: { state: LinkRequired; onLinked:
             required
             maxLength={50}
           />
-          {captchaField}
+          {needsCaptcha ? captchaField : null}
           <label className="terms">
             <input type="checkbox" checked={acceptTerms} onChange={(e) => setAcceptTerms(e.target.checked)} />
             <span>{t("terms_checkbox_text")}</span>

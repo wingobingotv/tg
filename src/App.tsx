@@ -2,6 +2,7 @@ import { useQueryClient } from "@tanstack/react-query"
 import { useCallback, useEffect, useState } from "react"
 import { useTranslation } from "react-i18next"
 import { LinkScreen } from "./auth/LinkScreen"
+import { RecaptchaProvider } from "./auth/recaptcha"
 import { useTelegramAuth } from "./auth/useTelegramAuth"
 import { Logo } from "./components/ui"
 import { HomeScreen } from "./screens/HomeScreen"
@@ -75,6 +76,12 @@ export function App() {
   const { state, retry, completeLink, endSession } = useTelegramAuth()
 
   if (state.kind === "ready") return <Shell onSessionEnd={endSession} />
-  if (state.kind === "link_required") return <LinkScreen state={state} onLinked={completeLink} />
+  if (state.kind === "link_required") {
+    return (
+      <RecaptchaProvider>
+        <LinkScreen state={state} onLinked={completeLink} />
+      </RecaptchaProvider>
+    )
+  }
   return <StatusScreen state={state} onRetry={retry} />
 }

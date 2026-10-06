@@ -66,7 +66,8 @@ Telegram is a second identity on an existing email account. Never a separate use
 3. **Linked identity:** mint a session exactly like `/user/login` and return `userAuth`.
 4. **Not linked:** return `link_required` plus a short-lived, single-use link ticket. The
    ticket is server-stored and bound to the Telegram user id.
-5. The player logs in with email and password (existing `/user/login`, captcha included) or
+5. The player logs in with email and password (existing `/user/login`, with the website's
+   reCAPTCHA v3, or the image captcha when no site key is set) or
    registers (existing `/user/register`, then login). Then `POST /auth/telegram/link`
    `{linkTicket}` with that session links the two identities.
 6. Linking refuses:

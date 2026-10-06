@@ -19,6 +19,8 @@
   "You are signed out. Opening the app from the bot signs you in again.": "Vous êtes déconnecté. En rouvrant l’application depuis le bot, vous serez reconnecté.",
   "The email or password is not correct.": "L’e-mail ou le mot de passe est incorrect.",
   "The security code is not correct. Try the new one.": "Le code de sécurité est incorrect. Essayez le nouveau code.",
+  "Security check isn't ready yet, please try again in a moment": "La vérification de sécurité n'est pas prête, réessayez dans un instant",
+  "The security check didn't pass. Please try again.": "La vérification de sécurité n'a pas abouti. Veuillez réessayer.",
   "Enter your email.": "Saisissez votre e-mail.",
   "Enter your password.": "Saisissez votre mot de passe.",
   "This email is too long.": "Cet e-mail est trop long.",

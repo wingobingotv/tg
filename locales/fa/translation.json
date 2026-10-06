@@ -19,6 +19,8 @@
   "You are signed out. Opening the app from the bot signs you in again.": "از حساب خارج شدید. با باز کردن اپ از داخل ربات، دوباره وارد می‌شوید.",
   "The email or password is not correct.": "ایمیل یا رمز عبور درست نیست.",
   "The security code is not correct. Try the new one.": "کد امنیتی درست نیست. کد جدید را وارد کنید.",
+  "Security check isn't ready yet, please try again in a moment": "بررسی امنیتی هنوز آماده نیست، لحظاتی بعد دوباره تلاش کنید",
+  "The security check didn't pass. Please try again.": "بررسی امنیتی تأیید نشد. لطفاً دوباره تلاش کنید.",
   "Enter your email.": "ایمیل خود را وارد کنید.",
   "Enter your password.": "رمز عبور خود را وارد کنید.",
   "This email is too long.": "این ایمیل بیش از حد طولانی است.",

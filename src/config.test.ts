@@ -21,6 +21,7 @@ describe("parseConfig", () => {
       defaultLang: "en",
       debugTelemetryUrl: "",
       debugTelemetryKey: "",
+      recaptchaSiteKey: "",
     })
   })
 
@@ -33,6 +34,7 @@ describe("parseConfig", () => {
       defaultLang: "fa",
       debugTelemetryUrl: "https://api.wingobingo.tv/debug-telemetry/ingest",
       debugTelemetryKey: "abcdef123456",
+      recaptchaSiteKey: "6LcTestSiteKeyForUnitTests_0123456789ab",
     })
     expect(c).toEqual({
       playerApiUrl: "https://v2.api.wingobingo.tv",
@@ -42,11 +44,19 @@ describe("parseConfig", () => {
       defaultLang: "fa",
       debugTelemetryUrl: "https://api.wingobingo.tv/debug-telemetry/ingest",
       debugTelemetryKey: "abcdef123456",
+      recaptchaSiteKey: "6LcTestSiteKeyForUnitTests_0123456789ab",
     })
   })
 
   it("rejects bad optional values instead of using them", () => {
-    const c = parseConfig({ ...base, botUsername: "@bad name", miniAppShortName: "x", defaultLang: "de" })
+    const c = parseConfig({
+      ...base,
+      botUsername: "@bad name",
+      miniAppShortName: "x",
+      defaultLang: "de",
+      recaptchaSiteKey: "short\"><script>",
+    })
+    expect(c?.recaptchaSiteKey).toBe("")
     expect(c?.botUsername).toBe("")
     expect(c?.miniAppShortName).toBe("")
     expect(c?.defaultLang).toBe("en")

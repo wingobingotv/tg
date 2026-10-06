@@ -19,6 +19,8 @@
   "You are signed out. Opening the app from the bot signs you in again.": "You are signed out. Opening the app from the bot signs you in again.",
   "The email or password is not correct.": "The email or password is not correct.",
   "The security code is not correct. Try the new one.": "The security code is not correct. Try the new one.",
+  "Security check isn't ready yet, please try again in a moment": "Security check isn't ready yet, please try again in a moment",
+  "The security check didn't pass. Please try again.": "The security check didn't pass. Please try again.",
   "Enter your email.": "Enter your email.",
   "Enter your password.": "Enter your password.",
   "This email is too long.": "This email is too long.",

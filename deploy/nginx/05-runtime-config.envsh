@@ -14,7 +14,7 @@ wb_fail() {
 # grep checks line by line, so a value holding a newline could pass on one
 # good line and smuggle the next one into config.js. Refuse those first.
 for wb_name in PLAYER_API_URL SITE_URL TELEGRAM_BOT_USERNAME TELEGRAM_MINIAPP_SHORT_NAME \
-  DEFAULT_LANG DEBUG_TELEMETRY_URL DEBUG_TELEMETRY_KEY; do
+  DEFAULT_LANG DEBUG_TELEMETRY_URL DEBUG_TELEMETRY_KEY RECAPTCHA_V3_SITE_KEY; do
   eval "wb_value=\${$wb_name:-}"
   case "$wb_value" in
     *"
@@ -25,7 +25,7 @@ done
 # grep checks line by line, so a value with a newline could pass on one good
 # line and smuggle a second one into config.js. Refuse such values first.
 for wb_var in PLAYER_API_URL SITE_URL TELEGRAM_BOT_USERNAME TELEGRAM_MINIAPP_SHORT_NAME \
-  DEFAULT_LANG DEBUG_TELEMETRY_URL DEBUG_TELEMETRY_KEY; do
+  DEFAULT_LANG DEBUG_TELEMETRY_URL DEBUG_TELEMETRY_KEY RECAPTCHA_V3_SITE_KEY; do
   eval "wb_val=\${$wb_var:-}"
   case "$wb_val" in
     *"
@@ -80,14 +80,26 @@ else
   DEBUG_TELEMETRY_KEY=""
 fi
 
+# Same Google reCAPTCHA v3 site key as the website (NEXT_PUBLIC_RECAPTCHA_V3_SITE_KEY).
+# The CSP lets Google's reCAPTCHA script and frame in only when a key is set.
+RECAPTCHA_V3_SITE_KEY="${RECAPTCHA_V3_SITE_KEY:-}"
+RECAPTCHA_SCRIPT_SRC=""
+RECAPTCHA_FRAME_SRC=""
+if [ -n "$RECAPTCHA_V3_SITE_KEY" ]; then
+  printf '%s' "$RECAPTCHA_V3_SITE_KEY" | grep -Eq '^[A-Za-z0-9_-]{20,100}$' \
+    || wb_fail "RECAPTCHA_V3_SITE_KEY is not a reCAPTCHA site key"
+  RECAPTCHA_SCRIPT_SRC="https://www.google.com/recaptcha/ https://www.gstatic.com/recaptcha/"
+  RECAPTCHA_FRAME_SRC="https://www.google.com/recaptcha/ https://recaptcha.google.com/recaptcha/"
+fi
+
 PLAYER_API_ORIGIN="$(wb_origin "$PLAYER_API_URL")"
-export PLAYER_API_ORIGIN TELEMETRY_ORIGIN
+export PLAYER_API_ORIGIN TELEMETRY_ORIGIN RECAPTCHA_SCRIPT_SRC RECAPTCHA_FRAME_SRC
 
 mkdir -p /tmp/wb-runtime || wb_fail "cannot create /tmp/wb-runtime"
-printf 'window.__WINGOBINGO_CONFIG__ = Object.freeze({\n  playerApiUrl: "%s",\n  siteUrl: "%s",\n  botUsername: "%s",\n  miniAppShortName: "%s",\n  defaultLang: "%s",\n  debugTelemetryUrl: "%s",\n  debugTelemetryKey: "%s"\n});\n' \
+printf 'window.__WINGOBINGO_CONFIG__ = Object.freeze({\n  playerApiUrl: "%s",\n  siteUrl: "%s",\n  botUsername: "%s",\n  miniAppShortName: "%s",\n  defaultLang: "%s",\n  debugTelemetryUrl: "%s",\n  debugTelemetryKey: "%s",\n  recaptchaSiteKey: "%s"\n});\n' \
   "$PLAYER_API_URL" "$SITE_URL" "$TELEGRAM_BOT_USERNAME" "$TELEGRAM_MINIAPP_SHORT_NAME" \
-  "$DEFAULT_LANG" "$DEBUG_TELEMETRY_URL" "$DEBUG_TELEMETRY_KEY" \
+  "$DEFAULT_LANG" "$DEBUG_TELEMETRY_URL" "$DEBUG_TELEMETRY_KEY" "$RECAPTCHA_V3_SITE_KEY" \
   > /tmp/wb-runtime/config.js || wb_fail "cannot write /tmp/wb-runtime/config.js"
 [ -s /tmp/wb-runtime/config.js ] || wb_fail "/tmp/wb-runtime/config.js is empty"
 
-echo "[wingobingo-telegram] runtime config written (api ${PLAYER_API_ORIGIN}, bot @${TELEGRAM_BOT_USERNAME})"
+echo "[wingobingo-telegram] runtime config written (api ${PLAYER_API_ORIGIN}, bot @${TELEGRAM_BOT_USERNAME}, captcha $([ -n "$RECAPTCHA_V3_SITE_KEY" ] && echo recaptcha-v3 || echo image))"

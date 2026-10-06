@@ -68,7 +68,11 @@ The Mini App therefore keeps its session token in `sessionStorage` and only call
    (`telegram_link_tickets`, only the SHA-256 of the ticket) with the verified Telegram profile
    and `start_param`. The ticket lives `linkTicketTtlSec` (default 15 min) and works once.
 2. The player logs in with the existing `/user/login` (captcha included), or registers with
-   `/user/register` and then logs in.
+   `/user/register` and then logs in. The captcha is Google reCAPTCHA v3, set up as on
+   wingobingo.tv: same site key (`RECAPTCHA_V3_SITE_KEY` here, `NEXT_PUBLIC_RECAPTCHA_V3_SITE_KEY`
+   on the website), actions `login` / `register`, a `recaptchaToken` the Player API checks with
+   `RECAPTCHA_V3_SECRET` and `RECAPTCHA_V3_MIN_SCORE`. Google's script loads only on this
+   screen. With no site key the screen falls back to the image captcha (`/captcha`).
 3. `/auth/telegram/link` with that session:
    - the session must be an email session younger than the ticket TTL. An old or stolen web
      session cannot attach someone else's Telegram account;

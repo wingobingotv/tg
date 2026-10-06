@@ -19,6 +19,8 @@
   "You are signed out. Opening the app from the bot signs you in again.": "تم تسجيل خروجك. عند فتح التطبيق من البوت ستُسجَّل دخولك مجددًا.",
   "The email or password is not correct.": "البريد الإلكتروني أو كلمة المرور غير صحيحة.",
   "The security code is not correct. Try the new one.": "رمز التحقق غير صحيح. جرّب الرمز الجديد.",
+  "Security check isn't ready yet, please try again in a moment": "التحقق الأمني غير جاهز بعد، يرجى المحاولة بعد لحظات",
+  "The security check didn't pass. Please try again.": "لم يكتمل التحقق الأمني. يرجى المحاولة مرة أخرى.",
   "Enter your email.": "أدخل بريدك الإلكتروني.",
   "Enter your password.": "أدخل كلمة المرور.",
   "This email is too long.": "هذا البريد الإلكتروني طويل جدًا.",

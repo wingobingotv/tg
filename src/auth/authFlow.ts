@@ -115,6 +115,7 @@ export function connectPreviewFrom(res: unknown): { maskedEmail: string } | null
 export const AUTH_ERROR_COPY: Record<string, string> = {
   invalid_login: "The email or password is not correct.",
   wrong_captcha: "The security code is not correct. Try the new one.",
+  recaptcha_failed: "The security check didn't pass. Please try again.",
   use_google_login: "This account signs in with Google. Use “Continue with Google” instead.",
   user_could_not_be_empty: "Enter your email.",
   password_could_not_be_empty: "Enter your password.",
