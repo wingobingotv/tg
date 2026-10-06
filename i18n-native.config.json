@@ -1,0 +1,6 @@
+{
+  "languages": ["ar", "fa", "fr"],
+  "sets": [
+    { "source": "locales/en", "target": "locales/{lang}", "kind": "ui" }
+  ]
+}

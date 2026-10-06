@@ -1,0 +1,45 @@
+# Rendered at container start by the nginx image (envsubst). PLAYER_API_ORIGIN
+# and TELEMETRY_ORIGIN come from 05-runtime-config.envsh. TLS ends at the host
+# nginx in front of this container.
+server {
+    listen 8080;
+    server_name _;
+    root /usr/share/nginx/html;
+    server_tokens off;
+
+    gzip on;
+    gzip_types text/css application/javascript application/json image/svg+xml;
+
+    # Telegram Web (web.telegram.org) embeds Mini Apps in an iframe, so no
+    # X-Frame-Options; frame-ancestors lists the Telegram web clients instead.
+    # No add_header inside the locations below: it would drop these.
+    add_header Content-Security-Policy "default-src 'self'; script-src 'self' https://telegram.org; connect-src 'self' ${PLAYER_API_ORIGIN} ${TELEMETRY_ORIGIN}; img-src 'self' data: blob: https:; media-src 'self' blob: https:; style-src 'self' 'unsafe-inline'; font-src 'self'; frame-ancestors https://web.telegram.org https://webk.telegram.org https://webz.telegram.org; base-uri 'self'; form-action 'self'; object-src 'none'" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+    add_header Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=()" always;
+
+    location = /healthz {
+        access_log off;
+        default_type text/plain;
+        return 200 "ok\n";
+    }
+
+    # Generated from .env at start; never cached so a restart takes effect at once.
+    location = /config.js {
+        alias /tmp/wb-runtime/config.js;
+        default_type application/javascript;
+        expires -1;
+    }
+
+    # Hashed build output.
+    location /assets/ {
+        expires 1y;
+        try_files $uri =404;
+    }
+
+    # Telegram's WebView caches hard; index.html must always be revalidated.
+    location / {
+        expires -1;
+        try_files $uri /index.html;
+    }
+}

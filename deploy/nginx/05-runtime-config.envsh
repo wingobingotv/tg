@@ -1,0 +1,70 @@
+#!/bin/sh
+# Sourced by the nginx entrypoint before /etc/nginx/templates are rendered.
+# Validates the container env (from .env via compose), writes the browser
+# config to /tmp/wb-runtime/config.js and exports the origins the CSP needs.
+# A bad value stops the container instead of serving a half-configured app.
+# Values are checked against strict patterns, so none can carry a quote or
+# script into config.js.
+
+wb_fail() {
+  echo "[wingobingo-telegram] config error: $*" >&2
+  exit 1
+}
+
+wb_https_url() {
+  printf '%s' "$2" | grep -Eq '^https://[A-Za-z0-9.-]+(:[0-9]{1,5})?(/[A-Za-z0-9._~/-]*)?$' \
+    || wb_fail "$1 must be an https:// URL without query or fragment (got '$2')"
+}
+
+wb_origin() {
+  printf '%s' "$1" | sed -E 's#^(https://[^/]+).*$#\1#'
+}
+
+[ -n "${PLAYER_API_URL:-}" ] || wb_fail "PLAYER_API_URL is required"
+wb_https_url PLAYER_API_URL "$PLAYER_API_URL"
+PLAYER_API_URL="${PLAYER_API_URL%/}"
+
+[ -n "${SITE_URL:-}" ] || wb_fail "SITE_URL is required"
+wb_https_url SITE_URL "$SITE_URL"
+SITE_URL="${SITE_URL%/}"
+
+[ -n "${TELEGRAM_BOT_USERNAME:-}" ] || wb_fail "TELEGRAM_BOT_USERNAME is required"
+TELEGRAM_BOT_USERNAME="${TELEGRAM_BOT_USERNAME#@}"
+printf '%s' "$TELEGRAM_BOT_USERNAME" | grep -Eq '^[A-Za-z][A-Za-z0-9_]{3,31}$' \
+  || wb_fail "TELEGRAM_BOT_USERNAME is not a Telegram username"
+
+TELEGRAM_MINIAPP_SHORT_NAME="${TELEGRAM_MINIAPP_SHORT_NAME:-}"
+if [ -n "$TELEGRAM_MINIAPP_SHORT_NAME" ]; then
+  printf '%s' "$TELEGRAM_MINIAPP_SHORT_NAME" | grep -Eq '^[A-Za-z0-9_]{3,30}$' \
+    || wb_fail "TELEGRAM_MINIAPP_SHORT_NAME must be 3-30 letters, digits or _"
+fi
+
+DEFAULT_LANG="${DEFAULT_LANG:-en}"
+case "$DEFAULT_LANG" in
+  en|ar|fa|fr) ;;
+  *) wb_fail "DEFAULT_LANG must be en, ar, fa or fr" ;;
+esac
+
+DEBUG_TELEMETRY_URL="${DEBUG_TELEMETRY_URL:-}"
+DEBUG_TELEMETRY_KEY="${DEBUG_TELEMETRY_KEY:-}"
+TELEMETRY_ORIGIN=""
+if [ -n "$DEBUG_TELEMETRY_URL" ]; then
+  wb_https_url DEBUG_TELEMETRY_URL "$DEBUG_TELEMETRY_URL"
+  printf '%s' "$DEBUG_TELEMETRY_KEY" | grep -Eq '^[A-Za-z0-9_-]{8,128}$' \
+    || wb_fail "DEBUG_TELEMETRY_KEY must be set (8-128 letters, digits, _ or -) when DEBUG_TELEMETRY_URL is set"
+  TELEMETRY_ORIGIN="$(wb_origin "$DEBUG_TELEMETRY_URL")"
+else
+  DEBUG_TELEMETRY_KEY=""
+fi
+
+PLAYER_API_ORIGIN="$(wb_origin "$PLAYER_API_URL")"
+export PLAYER_API_ORIGIN TELEMETRY_ORIGIN
+
+mkdir -p /tmp/wb-runtime || wb_fail "cannot create /tmp/wb-runtime"
+printf 'window.__WINGOBINGO_CONFIG__ = Object.freeze({\n  playerApiUrl: "%s",\n  siteUrl: "%s",\n  botUsername: "%s",\n  miniAppShortName: "%s",\n  defaultLang: "%s",\n  debugTelemetryUrl: "%s",\n  debugTelemetryKey: "%s"\n});\n' \
+  "$PLAYER_API_URL" "$SITE_URL" "$TELEGRAM_BOT_USERNAME" "$TELEGRAM_MINIAPP_SHORT_NAME" \
+  "$DEFAULT_LANG" "$DEBUG_TELEMETRY_URL" "$DEBUG_TELEMETRY_KEY" \
+  > /tmp/wb-runtime/config.js || wb_fail "cannot write /tmp/wb-runtime/config.js"
+[ -s /tmp/wb-runtime/config.js ] || wb_fail "/tmp/wb-runtime/config.js is empty"
+
+echo "[wingobingo-telegram] runtime config written (api ${PLAYER_API_ORIGIN}, bot @${TELEGRAM_BOT_USERNAME})"

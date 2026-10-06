@@ -1,0 +1,10 @@
+node_modules
+dist
+.git
+.env
+.env.*
+!.env.example
+.npm-cache
+.tmp
+.i18n-cache
+docs

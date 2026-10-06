@@ -1,0 +1,24 @@
+services:
+  miniapp:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        # Build-time only (native-tone translations). Everything else in .env
+        # is read at container start by deploy/nginx/05-runtime-config.envsh.
+        OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+        OPENAI_TRANSLATE_MODEL: ${OPENAI_TRANSLATE_MODEL:-}
+    image: wingobingo-telegram:latest
+    container_name: wingobingo-telegram
+    restart: unless-stopped
+    # Classic list form; the object form (path/required) breaks docker-compose v1.
+    env_file:
+      - .env
+    ports:
+      - "${MINIAPP_BIND:-127.0.0.1}:${MINIAPP_PORT:-7400}:8080"
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:8080/healthz"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
