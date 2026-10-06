@@ -6,8 +6,10 @@ import {
   drawPhase,
   gameStatus,
   hasLiveHost,
+  isHostedShow,
   isLivePageFinished,
   parseBalls,
+  playToday,
   parseOwnedTickets,
   parseTicketRules,
   parseWingoGame,
@@ -47,6 +49,65 @@ function game(over: Record<string, unknown> = {}): WingoGame {
   if (!g) throw new Error("fixture did not parse")
   return g
 }
+
+describe("home ordering (website home-v2)", () => {
+  const daily = (over: Record<string, unknown> = {}) => game({ tournamentType: 2, ...over })
+
+  it("reads the cadence from the live tags, ahead of the room", () => {
+    expect(daily({ name: "Every Day", tags: "daily, 24hours", streamingRoom: { roomId: "wingo-1" } }).format).toBe("daily")
+    expect(daily({ name: "Daily 1 Hour", tags: "daily, 60mins" }).format).toBe("hourly")
+    expect(daily({ name: "Daily 15 Minutes", tags: "daily, 15mins" }).format).toBe("every_15_min")
+    expect(daily({ name: "Quick", tags: null }).format).toBe("scheduled")
+    expect(daily({ name: "Studio", streamingRoom: { roomId: "wingo-9" } }).format).toBe("live")
+    expect(game({ tags: null }).format).toBe("special")
+  })
+
+  it("lifts a landing-featured game to special unless it is a live room game", () => {
+    expect(daily({ tags: "daily, mainlanding" }).format).toBe("special")
+    expect(daily({ tags: "mainlanding", streamingRoom: { roomId: "wingo-3" } }).format).toBe("live")
+  })
+
+  it("keeps automated games out of the hosted shows even with a room", () => {
+    expect(isHostedShow(daily({ tags: "daily, 24hours", streamingRoom: { roomId: "wingo-1" } }))).toBe(false)
+    expect(isHostedShow(daily({ streamingRoom: { roomId: "wingo-9" } }))).toBe(true)
+    expect(isHostedShow(game({ tags: null }))).toBe(true)
+  })
+
+  it("only lets Cinema retire a live show; cadence games complete on results", () => {
+    expect(gameStatus(daily({ tags: "daily", result: "[1,2,3,4,5,6,7]" }), NOW)).toBe("completed")
+    expect(gameStatus(game({ result: "[1,2,3,4,5,6,7]" }), NOW)).toBe("registration_open")
+  })
+
+  it("fills each Play Today slot with the next game of its soonest schedule", () => {
+    const g = (id: number, tags: string, inHours: number, name = "Daily") =>
+      daily({ gameId: id, name, tags, drawDate: sec(NOW + inHours * HOUR), date: sec(NOW + inHours * HOUR) })
+    const games = [
+      g(1, "daily, 24hours", 6),
+      g(2, "daily, 24hours", 30),
+      g(3, "daily, 15mins", 0.2),
+      g(4, "daily, 15mins", 0.45),
+      g(5, "daily, 60mins", 0.9),
+      g(6, "", 2, "One off"),
+      game({ gameId: 7 }),
+    ]
+    const { slots, scheduled } = playToday(games, NOW)
+    expect(slots.daily?.gameId).toBe("1")
+    expect(slots.every_15_min?.gameId).toBe("3")
+    expect(slots.hourly?.gameId).toBe("5")
+    expect(scheduled.map((x) => x.gameId)).toEqual(["6"])
+  })
+
+  it("drops a schedule whose next draw passed more than five minutes ago", () => {
+    const stale = daily({ tags: "daily, 15mins", drawDate: sec(NOW - 10 * 60_000), date: sec(NOW - 10 * 60_000), finished: 1 })
+    expect(playToday([stale], NOW).slots.every_15_min).toBeNull()
+  })
+
+  it("keeps the stored special type apart for the live page", () => {
+    const featured = daily({ tags: "mainlanding" })
+    expect(featured.special).toBe(true)
+    expect(featured.specialShow).toBe(false)
+  })
+})
 
 describe("parseWingoGame", () => {
   it("reads the website's fields", () => {

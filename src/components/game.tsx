@@ -2,9 +2,9 @@ import { useQueryClient } from "@tanstack/react-query"
 import { useState, type FormEvent } from "react"
 import { useTranslation } from "react-i18next"
 import { apiErrorDetail, post, setPrivateAccessToken } from "../api"
-import { wingoGameKey, wingoTicketsKey } from "../data"
-import { timeLeft, type CountdownKind, type GameStatus } from "../games/wingo"
-import { haptic } from "../telegram"
+import { winnerDetailKey, wingoGameKey, wingoTicketsKey } from "../data"
+import { isYouTubeUrl, timeLeft, type CountdownKind, type GameStatus } from "../games/wingo"
+import { haptic, openExternal } from "../telegram"
 import { Alert, Button, Field } from "./ui"
 
 /** Status chip copy, same states as the website's home cards. */
@@ -60,12 +60,17 @@ export function Balls({
   lucky,
   hits,
   luckyHit,
+  labelLucky = false,
 }: {
   numbers: readonly number[]
   lucky?: number | null
   hits?: ReadonlySet<number>
   luckyHit?: boolean
+  /** Website winners style: "Lucky" above the lucky ball. */
+  labelLucky?: boolean
 }) {
+  const { t } = useTranslation()
+  const luckyBall = lucky != null ? <span className={`ball ball-lucky${luckyHit ? " ball-hit" : ""}`}>{lucky}</span> : null
   return (
     <span className="balls" dir="ltr">
       {numbers.map((n, i) => (
@@ -73,8 +78,32 @@ export function Balls({
           {n}
         </span>
       ))}
-      {lucky != null ? <span className={`ball ball-lucky${luckyHit ? " ball-hit" : ""}`}>{lucky}</span> : null}
+      {luckyBall && labelLucky ? (
+        <span className="ball-lucky-wrap">
+          <span className="ball-lucky-label">{t("Lucky")}</span>
+          {luckyBall}
+        </span>
+      ) : (
+        luckyBall
+      )}
     </span>
+  )
+}
+
+/** Recorded show: YouTube opens outside Telegram, files play in place. */
+export function Replay({ url }: { url: string }) {
+  const { t } = useTranslation()
+  if (isYouTubeUrl(url)) {
+    return (
+      <div className="stage stage-empty">
+        <Button onClick={() => openExternal(url)}>{t("Watch the replay")}</Button>
+      </div>
+    )
+  }
+  return (
+    <div className="stage">
+      <video className="stage-video" src={url} controls playsInline preload="metadata" />
+    </div>
   )
 }
 
@@ -98,6 +127,7 @@ export function PrivateGate({ gameId }: { gameId: string }) {
       setPassword("")
       await queryClient.invalidateQueries({ queryKey: wingoGameKey(gameId) })
       await queryClient.invalidateQueries({ queryKey: wingoTicketsKey(gameId) })
+      await queryClient.invalidateQueries({ queryKey: winnerDetailKey(gameId) })
     } catch (err) {
       haptic("error")
       setError(apiErrorDetail(err).status === 429 ? t("Too many attempts. Try again later.") : t("Incorrect password"))

@@ -26,11 +26,20 @@ export type TicketRules = {
 
 export type PrizeTier = { name: string; prize: number; percentage: number }
 
+/** Website `HomeGameFormat` for Wingo: how often a game runs, or that it is a hosted show. */
+export type WingoFormat = "special" | "every_15_min" | "hourly" | "daily" | "live" | "scheduled"
+
 export type WingoGame = {
   gameId: string
   name: string
+  /** Home classification: special format, including landing-featured games. */
   special: boolean
+  /** Stored type only (`tournamentType === 1`), as the website's live-page rules use. */
+  specialShow: boolean
   featured: boolean
+  format: WingoFormat
+  /** Same key for every occurrence of one automated schedule (website `recurrenceKey`). */
+  recurrenceKey: string
   imageUrl: string | null
   heroUrl: string | null
   drawAtMs: number | null
@@ -188,6 +197,39 @@ export function isYouTubeUrl(url: string): boolean {
   return YOUTUBE_RE.test(url)
 }
 
+/**
+ * Website `detectGameFormat` for Wingo. Cadence tags win over a room: the
+ * automated daily, hourly and 15-minute games also get a `wingo-N` room.
+ */
+export function detectWingoFormat(tags: string, title: string, special: boolean, hasRoom: boolean): WingoFormat {
+  const blob = `${tags} ${title.toLowerCase()}`
+  const has = (...needles: string[]) => needles.some((n) => tags.includes(n))
+  if (special || has("special")) return "special"
+  if (has("15min", "15-min", "every15", "15_min", "15mins") || /\bevery\s*15\b/.test(blob) || /\b15\s*mins?\b/.test(blob)) {
+    return "every_15_min"
+  }
+  if (
+    has("hourly", "everyhour", "60mins", "60min") ||
+    /\bevery\s*60\b/.test(blob) ||
+    /\b60\s*mins?\b/.test(blob) ||
+    /\b1\s*hour\b/.test(blob) ||
+    /\bevery\s*hour\b/.test(blob)
+  ) {
+    return "hourly"
+  }
+  if (has("daily", "24h", "24-hour", "every_day", "24hours") || /\bevery\s*day\b/.test(blob) || /\b24\s*hours?\b/.test(blob)) {
+    return "daily"
+  }
+  return hasRoom ? "live" : "scheduled"
+}
+
+/** Website `recurrenceKey`: first three tags, else the start of the title. */
+export function recurrenceKey(format: WingoFormat, tags: string, title: string): string {
+  const tagPart = tags.split(/[,\s]+/).filter(Boolean).slice(0, 3).join("_")
+  const titlePart = title.trim().toLowerCase().slice(0, 24).replace(/\s+/g, "_")
+  return `wingo:${format}:${tagPart || titlePart || "default"}`
+}
+
 /** One `/wingo/getTournaments` item → the fields the Mini App uses. */
 export function parseWingoGame(raw: unknown): WingoGame | null {
   const g = rec(raw)
@@ -196,6 +238,12 @@ export function parseWingoGame(raw: unknown): WingoGame | null {
   const tags = str(g.tags).toLowerCase()
   const room = rec(g.streamingRoom)
   const roomId = str(room.roomId)
+  const liveRoomId = roomId && !/^\d+$/.test(roomId) ? roomId : null
+  const name = str(g.name) || "Wingo"
+  const featured = tagged(tags, "mainlanding")
+  const specialShow = Number(g.tournamentType) === 1
+  const detected = detectWingoFormat(tags, name, specialShow, liveRoomId !== null)
+  const format: WingoFormat = featured && detected !== "live" ? "special" : detected
   const influencer = rec(g.influencer)
   const aiEnabled = g.aiEnabled === true
   const aiAvatar = aiEnabled && Boolean(str(g.aiAvatarId) || str(g.aiAvatarImageUrl))
@@ -209,9 +257,12 @@ export function parseWingoGame(raw: unknown): WingoGame | null {
 
   return {
     gameId,
-    name: str(g.name) || "Wingo",
-    special: Number(g.tournamentType) === 1 || tags.includes("special"),
-    featured: tagged(tags, "mainlanding"),
+    name,
+    special: format === "special",
+    specialShow,
+    featured,
+    format,
+    recurrenceKey: recurrenceKey(format, tags, name),
     imageUrl: https(g.mobileImageUrl) ?? https(g.icon),
     heroUrl: https(g.desktopImageUrl) ?? https(g.backgroundImageUrl) ?? https(g.mobileImageUrl),
     drawAtMs: toMs(g.drawDate),
@@ -230,7 +281,7 @@ export function parseWingoGame(raw: unknown): WingoGame | null {
     cronStatus: num(g.cronStatus),
     cinemaFinalized: g.cinemaFinalized === true,
     result: parseBalls(g.result),
-    liveRoomId: roomId && !/^\d+$/.test(roomId) ? roomId : null,
+    liveRoomId,
     streamingStatus: str(room.status).toLowerCase(),
     aiEnabled,
     aiAvatar,
@@ -281,9 +332,69 @@ export function isFinalized(g: WingoGame): boolean {
   return g.finished === 1 || g.rawStatus === "finish" || g.rawStatus === "finished" || g.cronStatus === 2
 }
 
-/** Hosted show: a special, a landing-featured game, or one with a real LiveKit room. */
+const AUTOMATED: ReadonlySet<WingoFormat> = new Set(["every_15_min", "hourly", "daily", "scheduled"])
+
+/** Hosted show (website `isHostedShow`): automated games count only when landing-featured. */
 export function isHostedShow(g: WingoGame): boolean {
-  return g.special || g.featured || g.liveRoomId !== null
+  if (AUTOMATED.has(g.format)) return g.featured
+  return g.featured || g.format === "special" || g.format === "live" || g.liveRoomId !== null
+}
+
+/** Website `isLiveShowFormat`: a show stays up until Cinema finalizes it, results or not. */
+export function isLiveShowFormat(format: WingoFormat): boolean {
+  return format === "special" || format === "live"
+}
+
+export const CADENCES = ["daily", "every_15_min", "hourly"] as const
+export type Cadence = (typeof CADENCES)[number]
+
+/** Website Play Today `MODE_META` plus the cadence mark of the small cards. Labels are translated copy. */
+export const CADENCE_COPY: Record<Cadence, { label: string; short: string; hint: string; value: string; unit: string }> = {
+  daily: { label: "Daily Draw", short: "Daily", hint: "Daily Draw", value: "24", unit: "Hr" },
+  every_15_min: { label: "Every 15 Minutes", short: "15 Min", hint: "Fast draws", value: "15", unit: "Min" },
+  hourly: { label: "Every Hour", short: "Hourly", hint: "Steady rhythm", value: "1", unit: "Hr" },
+}
+
+const PLAYABLE: readonly GameStatus[] = ["live_now", "result_being_announced", "registration_open", "starting_soon"]
+const GROUP_GRACE_MS = 5 * MINUTE
+
+function drawOrder(a: WingoGame, b: WingoGame): number {
+  return (a.drawAtMs ?? Number.MAX_SAFE_INTEGER) - (b.drawAtMs ?? Number.MAX_SAFE_INTEGER)
+}
+
+/**
+ * Website Play Today (`composeHomeV2Feed` recurring groups + `pickSoonestGroup`):
+ * per cadence, the next occurrence of the soonest automated schedule. Also
+ * returns the next game of each `scheduled` schedule, which has no cadence slot.
+ */
+export function playToday(games: readonly WingoGame[], nowMs: number) {
+  const groups = new Map<string, WingoGame[]>()
+  for (const g of games) {
+    if (!AUTOMATED.has(g.format) || isHostedShow(g)) continue
+    const status = gameStatus(g, nowMs)
+    if (status === "completed" || status === "cancelled" || status === "temporarily_unavailable") continue
+    groups.set(g.recurrenceKey, [...(groups.get(g.recurrenceKey) ?? []), g])
+  }
+
+  const nexts: WingoGame[] = []
+  for (const list of groups.values()) {
+    const sorted = [...list].sort(drawOrder)
+    const next =
+      sorted.find((g) => {
+        const s = gameStatus(g, nowMs)
+        return PLAYABLE.includes(s) || s === "registration_closed" || s === "scheduled"
+      }) ?? sorted[0]
+    if (!next) continue
+    const live = isLiveStatus(gameStatus(next, nowMs))
+    if (live || (next.drawAtMs != null && next.drawAtMs >= nowMs - GROUP_GRACE_MS)) nexts.push(next)
+  }
+  nexts.sort(drawOrder)
+
+  const slots = Object.fromEntries(CADENCES.map((c) => [c, nexts.find((g) => g.format === c) ?? null])) as Record<
+    Cadence,
+    WingoGame | null
+  >
+  return { slots, scheduled: nexts.filter((g) => g.format === "scheduled") }
 }
 
 export function gameStatus(g: WingoGame, nowMs: number): GameStatus {
@@ -299,7 +410,7 @@ export function gameStatus(g: WingoGame, nowMs: number): GameStatus {
   if (drawMs != null && nowMs >= drawMs) {
     return raw.includes("result") || raw.includes("announce") ? "result_being_announced" : "live_now"
   }
-  if (g.result.length > 0 && !isHostedShow(g)) return "completed"
+  if (g.result.length > 0 && !isLiveShowFormat(g.format)) return "completed"
   if (g.isTicketingOpen) {
     if (regCloseMs != null && regCloseMs - nowMs <= 30 * MINUTE) return "starting_soon"
     if (startMs != null && startMs - nowMs <= 60 * MINUTE) return "starting_soon"
@@ -353,7 +464,7 @@ export function drawPhase(g: WingoGame, nowMs: number): "sales" | "join" | "draw
 
 /** On-camera host: an influencer special, or an AI presenter with an avatar. */
 export function hasLiveHost(g: WingoGame): boolean {
-  return (g.special && !g.aiEnabled) || g.aiAvatar
+  return (g.specialShow && !g.aiEnabled) || g.aiAvatar
 }
 
 function liveRoomStatus(s: string): boolean {
@@ -365,7 +476,7 @@ export function isLivePageFinished(g: WingoGame, nowMs: number): boolean {
   if (g.cinemaFinalized) return true
   if (liveRoomStatus(g.streamingStatus)) return false
   const drawn = g.finished === 1 || g.rawStatus === "finish" || g.rawStatus === "finished" || g.cronStatus === 2
-  if (g.special && !g.aiEnabled) return false
+  if (g.specialShow && !g.aiEnabled) return false
   if (g.aiEnabled) {
     if (!drawn) return false
     if (g.drawAtMs == null) return false

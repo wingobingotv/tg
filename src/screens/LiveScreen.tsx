@@ -1,7 +1,7 @@
 import { useQueryClient } from "@tanstack/react-query"
 import { useCallback } from "react"
 import { useTranslation } from "react-i18next"
-import { Balls, Countdown, PrivateGate, StatusChip } from "../components/game"
+import { Balls, Countdown, PrivateGate, Replay, StatusChip } from "../components/game"
 import { Alert, Button, Spinner } from "../components/ui"
 import { config } from "../config"
 import { useWingoGame, useWingoTickets, wingoGameKey } from "../data"
@@ -10,7 +10,6 @@ import {
   gameStatus,
   hasLiveHost,
   isLivePageFinished,
-  isYouTubeUrl,
   type WingoGame,
 } from "../games/wingo"
 import { useNow } from "../hooks/useNow"
@@ -19,26 +18,9 @@ import { LiveChat } from "../live/LiveChat"
 import { CONNECTION_COPY } from "../live/connection"
 import { useLiveShow } from "../live/useLiveShow"
 import { useNav } from "../navigation"
-import { openExternal } from "../telegram"
 import { MyTickets } from "./WingoGameScreen"
 
 const GAME_POLL_MS = 10_000
-
-function Replay({ url }: { url: string }) {
-  const { t } = useTranslation()
-  if (isYouTubeUrl(url)) {
-    return (
-      <div className="stage stage-empty">
-        <Button onClick={() => openExternal(url)}>{t("Watch the replay")}</Button>
-      </div>
-    )
-  }
-  return (
-    <div className="stage">
-      <video className="stage-video" src={url} controls playsInline preload="metadata" />
-    </div>
-  )
-}
 
 function LiveView({ game }: { game: WingoGame }) {
   const { t } = useTranslation()

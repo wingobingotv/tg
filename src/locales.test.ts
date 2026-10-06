@@ -7,7 +7,8 @@ import fa from "../locales/fa/translation.json"
 import fr from "../locales/fr/translation.json"
 import { AUTH_ERROR_COPY, GENERIC_ERROR, REOPEN_COPY } from "./auth/authFlow"
 import { COUNTDOWN_COPY, STATUS_COPY } from "./components/game"
-import { CART_PROBLEM_COPY, PRIZE_TIERS, PURCHASE_ERROR_COPY } from "./games/wingo"
+import { DETAIL_TIERS, EVENT_TYPES, TIMELINE_COPY } from "./games/winners"
+import { CADENCE_COPY, CART_PROBLEM_COPY, PRIZE_TIERS, PURCHASE_ERROR_COPY } from "./games/wingo"
 import { CANNOT_SEND_COPY, CHAT_ERROR_COPY } from "./live/chat"
 import { CONNECTION_COPY } from "./live/connection"
 
@@ -22,6 +23,18 @@ const COPY_TABLES: Record<string, string>[] = [
   CANNOT_SEND_COPY,
   CONNECTION_COPY,
   Object.fromEntries(Object.entries(PRIZE_TIERS).map(([k, v]) => [k, v.label])),
+  TIMELINE_COPY,
+  Object.fromEntries(DETAIL_TIERS.map((d) => [d.tier, d.tier])),
+  Object.fromEntries(EVENT_TYPES.flatMap((e) => [[`${e.id}-label`, e.label], [`${e.id}-short`, e.short]])),
+  Object.fromEntries(
+    Object.entries(CADENCE_COPY).flatMap(([k, v]) => [
+      [`${k}-label`, v.label],
+      [`${k}-short`, v.short],
+      [`${k}-hint`, v.hint],
+      [`${k}-unit`, v.unit],
+    ]),
+  ),
+  { home: "Home", winners: "Winners", profile: "Profile" },
 ]
 
 const SRC = path.dirname(new URL(import.meta.url).pathname)

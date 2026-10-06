@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest"
-import { bingoUrl, type GameCard } from "./data"
 import { formatDrawTime, formatMoney, toNumber } from "./format"
 import { pickLanguage } from "./i18n"
+import { routeFromStartParam } from "./navigation"
 
 describe("formatMoney", () => {
   it("formats ISO currencies", () => {
@@ -38,28 +38,17 @@ describe("pickLanguage", () => {
   })
 })
 
-describe("bingoUrl", () => {
-  const base: GameCard = {
-    key: "k",
-    kind: "bingo",
-    gameId: "66ab",
-    title: "",
-    imageUrl: null,
-    ticketPrice: 1,
-    prizePool: 1,
-    drawDate: 0,
-  }
-
-  it("matches the website routes", () => {
-    expect(bingoUrl("https://wingobingo.tv", "fa", base)).toBe("https://wingobingo.tv/fa/bingo/live?gameId=66ab")
-    expect(bingoUrl("https://wingobingo.tv", "en", { ...base, bingoMode: "offline" })).toBe(
-      "https://wingobingo.tv/en/bingo/offline?gameId=66ab",
-    )
+describe("routeFromStartParam", () => {
+  it("opens game, live, winner and winners links", () => {
+    expect(routeFromStartParam("wingo_4928")).toEqual({ name: "wingo", gameId: "4928" })
+    expect(routeFromStartParam("live_4928")).toEqual({ name: "live", gameId: "4928" })
+    expect(routeFromStartParam("winner_4928")).toEqual({ name: "winner", gameId: "4928" })
+    expect(routeFromStartParam("winners")).toEqual({ name: "winners" })
   })
 
-  it("encodes the game id", () => {
-    expect(bingoUrl("https://wingobingo.tv", "en", { ...base, gameId: "1&x=2" })).toBe(
-      "https://wingobingo.tv/en/bingo/live?gameId=1%26x%3D2",
-    )
+  it("ignores anything else", () => {
+    expect(routeFromStartParam("winner_1&x")).toBeNull()
+    expect(routeFromStartParam("profile")).toBeNull()
+    expect(routeFromStartParam(undefined)).toBeNull()
   })
 })

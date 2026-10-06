@@ -3,13 +3,18 @@ import { getDisplayCurrency } from "../api"
 import { Countdown, StatusChip } from "../components/game"
 import { Alert, Button, Spinner } from "../components/ui"
 import { config } from "../config"
-import { bingoUrl, useBingoGames, useProfile, useWallet, useWingoFeed, type GameCard } from "../data"
+import { useProfile, useWallet, useWingoFeed } from "../data"
 import { formatDrawTime, formatMoney, toNumber } from "../format"
 import {
+  CADENCE_COPY,
+  CADENCES,
   countdown,
   gameStatus,
   isHostedShow,
   isLiveStatus,
+  playToday,
+  timeLeft,
+  type Cadence,
   type GameStatus,
   type WingoGame,
 } from "../games/wingo"
@@ -141,52 +146,116 @@ function ShowSection({ title, entries, now }: { title: string; entries: Entry[];
   )
 }
 
-function BingoRow({ game }: { game: GameCard }) {
+const pad = (n: number) => String(n).padStart(2, "0")
+
+/** Website `countdownLabel` for the Play Today cards. */
+function useCadenceTimerLabel(game: WingoGame | null, status: GameStatus | null, kind: string): string {
   const { t } = useTranslation()
+  if (!game) return t("Starts in")
+  if (status === "live_now") return t("Live now")
+  if (kind === "registration_closes") return t("Registration closes in")
+  return t("Next draw in")
+}
+
+function Clock({ targetMs, now }: { targetMs: number; now: number }) {
+  const { t } = useTranslation()
+  const left = timeLeft(targetMs, now)
+  return (
+    <span className="cadence-clock">
+      {left.days > 0 ? <span>{t("{{count}}d", { count: left.days })} </span> : null}
+      <span dir="ltr">
+        {pad(left.hours)}:{pad(left.minutes)}:{pad(left.seconds)}
+      </span>
+    </span>
+  )
+}
+
+/** Website Play Today `ModeCard`: daily is the large poster card, 15-minute and hourly the small ones. */
+function CadenceCard({ cadence, game, now }: { cadence: Cadence; game: WingoGame | null; now: number }) {
+  const { t } = useTranslation()
+  const nav = useNav()
   const lang = currentLanguage()
-  const currency = getDisplayCurrency()
-  const draw = formatDrawTime(game.drawDate, lang)
+  const copy = CADENCE_COPY[cadence]
+  const status = game ? gameStatus(game, now) : null
+  const live = status != null && isLiveStatus(status)
+  const timer = game && status ? countdown(game, status, now) : { kind: "none" as const, targetMs: null }
+  const target = timer.targetMs ?? (game?.drawAtMs != null && game.drawAtMs > now ? game.drawAtMs : null)
+  const daily = cadence === "daily"
+  const todayAt = game?.drawAtMs
+    ? new Date(game.drawAtMs).toLocaleTimeString(lang, { hour: "2-digit", minute: "2-digit", timeZoneName: "short" })
+    : null
+  const open = game ? () => nav.open(live ? { name: "live", gameId: game.gameId } : { name: "wingo", gameId: game.gameId }) : null
+  const cta = live ? t("Watch now") : status === "registration_open" || status === "starting_soon" ? t("Get tickets") : t("View details")
+  const poster = daily && game ? (game.heroUrl ?? game.imageUrl) : null
+  const timerLabel = useCadenceTimerLabel(game, status, timer.kind)
 
   return (
-    <li className="game">
-      {game.imageUrl ? (
-        <img className="game-image" src={game.imageUrl} alt="" loading="lazy" decoding="async" />
-      ) : (
-        <span className="game-image game-image-empty" aria-hidden="true" />
-      )}
-      <div className="game-body">
-        <p className="game-title">{game.title || "Bingo"}</p>
-        {toNumber(game.prizePool) > 0 ? (
-          <p className="game-meta">
-            {t("Prize pool")}: <span dir="ltr">{formatMoney(game.prizePool, currency, lang)}</span>
-          </p>
-        ) : null}
-        {draw ? (
-          <p className="game-meta">
-            {t("Draw")}: <span dir="ltr">{draw}</span>
-          </p>
+    <li className={`cadence${daily ? " cadence-daily" : ""}${poster ? " cadence-poster" : ""}${live ? " cadence-live" : ""}`}>
+      {poster ? <img className="cadence-bg" src={poster} alt="" loading="lazy" decoding="async" /> : null}
+      <div className="cadence-body">
+        {daily ? (
+          <p className="cadence-title">{t(copy.label)}</p>
+        ) : (
+          <div className="cadence-id">
+            <span className="cadence-mark" aria-hidden="true">
+              <strong dir="ltr">{copy.value}</strong>
+              <span>{t(copy.unit)}</span>
+            </span>
+            <span>
+              <span className="cadence-hint">{t(copy.hint)}</span>
+              <span className="cadence-title">{t(copy.short)}</span>
+            </span>
+          </div>
+        )}
+        {daily && todayAt ? <p className="cadence-meta">{t("Today at {{time}}", { time: todayAt })}</p> : null}
+        {!daily && live ? <p className="cadence-live-label">{t("Live now")}</p> : null}
+
+        <div className={daily ? "cadence-stats-daily" : "cadence-stats"}>
+          <div>
+            <p className="cadence-label">{daily ? t("Prize pool") : t("Prize")}</p>
+            <p className="cadence-prize" dir="ltr">
+              {game ? formatMoney(game.prizePool, getDisplayCurrency(), lang) : "—"}
+            </p>
+          </div>
+          <div>
+            <p className="cadence-label">{timerLabel}</p>
+            {live ? (
+              <p className="cadence-live-label">{daily ? t("Live now") : t("Live")}</p>
+            ) : game && target ? (
+              <Clock targetMs={target} now={now} />
+            ) : (
+              <p className="cadence-meta">{t("Coming soon")}</p>
+            )}
+          </div>
+        </div>
+
+        {open ? (
+          <Button variant={live || status === "registration_open" || status === "starting_soon" ? "primary" : "secondary"} onClick={open}>
+            {cta}
+          </Button>
         ) : null}
       </div>
-      <Button variant="secondary" onClick={() => openExternal(bingoUrl(config?.siteUrl ?? "", lang, game))}>
-        {t("Play")}
-      </Button>
     </li>
   )
 }
 
-function BingoSection({ ready }: { ready: boolean }) {
+/** Website `HomePlayToday`, Wingo column. */
+function PlayToday({ slots, now }: { slots: Record<Cadence, WingoGame | null>; now: number }) {
   const { t } = useTranslation()
-  const bingo = useBingoGames(ready)
-  if (!bingo.data?.length) return null
   return (
-    <section className="card" aria-label={t("Bingo")}>
-      <h2 className="card-title">{t("Bingo")}</h2>
-      <ul className="games">
-        {bingo.data.map((g) => (
-          <BingoRow key={g.key} game={g} />
+    <section className="stack" aria-labelledby="play-today">
+      <div>
+        <p className="eyebrow" id="play-today">
+          {t("Play Today")}
+        </p>
+        <h2 className="section-title">{t("Your next chances to play & win.")}</h2>
+        <p className="muted small">{t("Automated draws by schedule — tickets before the draw, live after it starts.")}</p>
+      </div>
+      <ul className="cadences">
+        {CADENCES.map((c) => (
+          <CadenceCard key={c} cadence={c} game={slots[c]} now={now} />
         ))}
       </ul>
-      <p className="muted small">{t("Bingo opens on the website for now.")}</p>
     </section>
   )
 }
@@ -207,21 +276,20 @@ export function HomeScreen() {
     )
   }
 
-  const entries = feed.games
+  const hosted = feed.games
+    .filter(isHostedShow)
     .map((game) => ({ game, status: gameStatus(game, now) }))
     .filter((e) => !HIDDEN.includes(e.status))
-  const hosted = entries.filter((e) => isHostedShow(e.game))
   const liveNow = hosted.filter((e) => isLiveStatus(e.status)).sort(hostedSort)
   const shows = hosted.filter((e) => !isLiveStatus(e.status)).sort(hostedSort)
-  const wingo = entries.filter((e) => !isHostedShow(e.game)).sort(byDraw)
+  const today = playToday(feed.games, now)
+  const scheduled = today.scheduled.map((game) => ({ game, status: gameStatus(game, now) }))
 
   return (
     <div className="stack">
       <p className="greeting">
         {profile.data?.name ? t("Hi {{name}}!", { name: profile.data.name }) : t("Welcome to WingoBingo")}
       </p>
-      <ShowSection title={t("Live now")} entries={liveNow} now={now} />
-      <WalletCard ready={ready} />
       {feed.isPending ? <Spinner /> : null}
       {feed.isError ? (
         <div className="stack">
@@ -231,10 +299,11 @@ export function HomeScreen() {
           </Button>
         </div>
       ) : null}
+      <ShowSection title={t("Live now")} entries={liveNow} now={now} />
       <ShowSection title={t("Live shows")} entries={shows} now={now} />
-      <ShowSection title={t("Wingo")} entries={wingo} now={now} />
-      {!feed.isPending && !feed.isError && entries.length === 0 ? <p className="muted">{t("No open games right now.")}</p> : null}
-      <BingoSection ready={ready} />
+      {!feed.isPending && !feed.isError ? <PlayToday slots={today.slots} now={now} /> : null}
+      <ShowSection title={t("Next Shows")} entries={scheduled} now={now} />
+      <WalletCard ready={ready} />
     </div>
   )
 }

@@ -1,5 +1,12 @@
-import { useQuery } from "@tanstack/react-query"
+import { useInfiniteQuery, useQuery } from "@tanstack/react-query"
 import { post, setDisplayCurrency } from "./api"
+import {
+  parseDrawDays,
+  parseWinnerDetail,
+  parseWinnersPage,
+  type WinnerDetailResult,
+  type WinnerEventType,
+} from "./games/winners"
 import {
   parseOwnedTickets,
   parseWingoGame,
@@ -9,7 +16,7 @@ import {
   type WingoGameResult,
 } from "./games/wingo"
 
-/** Same endpoints and parameters as the website's hooks (useFetchNormalTournaments, useFetchBingoGames). */
+/** Same endpoints and parameters as the website's hooks (useFetchNormalTournaments, winners archive). */
 
 export type Profile = {
   name?: string | null
@@ -25,31 +32,12 @@ export type Wallet = {
   outstandingWagering: number
 }
 
-export type GameCard = {
-  key: string
-  kind: "bingo"
-  gameId: string
-  title: string
-  imageUrl: string | null
-  ticketPrice: unknown
-  prizePool: unknown
-  drawDate: unknown
-  /** Site route segment for Bingo: live | offline. */
-  bingoMode?: "live" | "offline"
-}
-
 export type TelegramStatus = {
   linked: boolean
   identity: { telegramUserId: string; username: string | null; firstName: string | null; linkedAt: string } | null
 }
 
 type Envelope<T> = { data?: T }
-
-const IMAGE_RE = /^https:\/\//
-
-function image(value: unknown): string | null {
-  return typeof value === "string" && IMAGE_RE.test(value) ? value : null
-}
 
 export function useProfile() {
   return useQuery({
@@ -147,37 +135,55 @@ export function useWingoTickets(gameId: string, enabled: boolean) {
   })
 }
 
-export function useBingoGames(enabled: boolean) {
+export type WinnersFilters = { eventType: WinnerEventType; date: number | null; gameId: string }
+
+const WINNERS_PAGE = 10
+
+/** Website `useGetRecentWinnersPreview`: `/wingo/getWinners`, 10 per page, filters only when set. */
+export function useWingoWinners(filters: WinnersFilters) {
+  const gameId = /^\d+$/.test(filters.gameId) ? filters.gameId : undefined
+  return useInfiniteQuery({
+    queryKey: ["wingo", "winners", filters.eventType, filters.date ?? "all", gameId ?? ""],
+    initialPageParam: 1,
+    queryFn: async ({ pageParam }) => {
+      const res = await post<unknown>("/wingo/getWinners", {
+        page: pageParam,
+        count: WINNERS_PAGE,
+        ...(filters.date ? { date: filters.date } : {}),
+        ...(gameId ? { gameId } : {}),
+        ...(filters.eventType !== "all" ? { eventType: filters.eventType } : {}),
+      })
+      return parseWinnersPage(res)
+    },
+    getNextPageParam: (last, pages) => (last.items.length < WINNERS_PAGE ? undefined : pages.length + 1),
+  })
+}
+
+/** Website `useGetDrawTimes("wingo", eventType)`: the days that had a draw. */
+export function useDrawDays(eventType: WinnerEventType) {
   return useQuery({
-    queryKey: ["bingo", "running"],
-    enabled,
-    queryFn: async (): Promise<GameCard[]> => {
-      const modes = ["live", "offline"] as const
-      const lists = await Promise.all(
-        modes.map((mode) =>
-          post<Envelope<{ games?: Record<string, unknown>[] }>>("/bingo/getGames", {
-            drawType: mode,
-            status: "running",
-            page: 1,
-            count: 10,
-          }).then((res) =>
-            (res.data?.games ?? []).map(
-              (g): GameCard => ({
-                key: `bingo-${String(g.gameId)}`,
-                kind: "bingo",
-                gameId: String(g.gameId),
-                title: String(g.title ?? g.name ?? ""),
-                imageUrl: image((g.assets as Record<string, unknown> | undefined)?.imageUrl),
-                ticketPrice: g.ticketPrice,
-                prizePool: g.totalPrizePool,
-                drawDate: g.drawDate,
-                bingoMode: mode,
-              }),
-            ),
-          ),
-        ),
-      )
-      return lists.flat()
+    queryKey: ["wingo", "draw-days", eventType],
+    queryFn: async () => {
+      const res = await post<Envelope<unknown>>("/getDrawTimes", {
+        type: "wingo",
+        ...(eventType !== "all" ? { eventType } : {}),
+      })
+      return parseDrawDays(res.data)
+    },
+  })
+}
+
+export function winnerDetailKey(gameId: string) {
+  return ["wingo", "winner", gameId] as const
+}
+
+/** One finished draw, as the website's winners detail page loads it. */
+export function useWinnerDetail(gameId: string) {
+  return useQuery({
+    queryKey: winnerDetailKey(gameId),
+    queryFn: async (): Promise<WinnerDetailResult | null> => {
+      const res = await post<Envelope<unknown>>("/getGameDetails", { gameId, gameType: "Wingo" })
+      return parseWinnerDetail(res.data, gameId)
     },
   })
 }
@@ -190,9 +196,4 @@ export function useTelegramStatus() {
       return { linked: res.linked === true, identity: res.identity ?? null }
     },
   })
-}
-
-/** Website page for a Bingo game, opened outside the Mini App (Bingo play is not in the app yet). */
-export function bingoUrl(siteUrl: string, lang: string, game: GameCard): string {
-  return `${siteUrl}/${lang}/bingo/${game.bingoMode ?? "live"}?gameId=${encodeURIComponent(game.gameId)}`
 }

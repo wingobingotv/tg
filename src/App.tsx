@@ -5,17 +5,23 @@ import { LinkScreen } from "./auth/LinkScreen"
 import { RecaptchaProvider } from "./auth/recaptcha"
 import { useTelegramAuth } from "./auth/useTelegramAuth"
 import { Logo, Spinner } from "./components/ui"
-import { NavProvider, routeFromStartParam, type Navigator, type Route } from "./navigation"
+import { isTab, NavProvider, routeFromStartParam, type Navigator, type Route, type TabName } from "./navigation"
 import { HomeScreen } from "./screens/HomeScreen"
 import { ProfileScreen } from "./screens/ProfileScreen"
 import { StatusScreen } from "./screens/StatusScreen"
+import { WinnerDetailScreen } from "./screens/WinnerDetailScreen"
+import { WinnersScreen } from "./screens/WinnersScreen"
 import { WingoGameScreen } from "./screens/WingoGameScreen"
 import { getWebApp } from "./telegram"
 
 /** LiveKit is only downloaded when a player opens a show. */
 const LiveScreen = lazy(() => import("./screens/LiveScreen").then((m) => ({ default: m.LiveScreen })))
 
-type Tab = "home" | "profile"
+const TABS: { name: TabName; label: string }[] = [
+  { name: "home", label: "Home" },
+  { name: "winners", label: "Winners" },
+  { name: "profile", label: "Profile" },
+]
 
 function useBackButton(visible: boolean, onBack: () => void) {
   useEffect(() => {
@@ -52,6 +58,10 @@ function Screen({ route, onSessionEnd }: { route: Route; onSessionEnd: Parameter
   switch (route.name) {
     case "profile":
       return <ProfileScreen onSessionEnd={onSessionEnd} />
+    case "winners":
+      return <WinnersScreen />
+    case "winner":
+      return <WinnerDetailScreen key={route.gameId} gameId={route.gameId} />
     case "wingo":
       return <WingoGameScreen key={route.gameId} gameId={route.gameId} />
     case "live":
@@ -73,20 +83,21 @@ function Shell({
   startRoute: Route | null
 }) {
   const { t } = useTranslation()
-  const [{ tab, stack }, setHistory] = useState<{ tab: Tab; stack: Route[] }>(() => ({
-    tab: "home",
-    stack: startRoute ? [startRoute] : [],
-  }))
+  const [{ tab, stack }, setHistory] = useState<{ tab: TabName; stack: Route[] }>(() =>
+    startRoute && isTab(startRoute)
+      ? { tab: startRoute.name, stack: [] }
+      : { tab: "home", stack: startRoute ? [startRoute] : [] },
+  )
   const route: Route = stack[stack.length - 1] ?? { name: tab }
 
   const back = useCallback(() => {
     setHistory((h) => (h.stack.length > 0 ? { ...h, stack: h.stack.slice(0, -1) } : { tab: "home", stack: [] }))
   }, [])
-  const pickTab = useCallback((next: Tab) => setHistory({ tab: next, stack: [] }), [])
+  const pickTab = useCallback((next: TabName) => setHistory({ tab: next, stack: [] }), [])
   const nav = useMemo<Navigator>(
     () => ({
       open: (next) => {
-        if (next.name === "home" || next.name === "profile") {
+        if (isTab(next)) {
           pickTab(next.name)
         } else {
           setHistory((h) => ({ ...h, stack: [...h.stack.filter((r) => !sameRoute(r, next)), next].slice(-MAX_STACK) }))
@@ -111,22 +122,17 @@ function Shell({
           <Screen route={route} onSessionEnd={onSessionEnd} />
         </main>
         <nav className="tabbar" aria-label={t("Main menu")}>
-          <button
-            type="button"
-            className={`tab${route.name === "home" ? " tab-active" : ""}`}
-            aria-current={route.name === "home" ? "page" : undefined}
-            onClick={() => pickTab("home")}
-          >
-            {t("Home")}
-          </button>
-          <button
-            type="button"
-            className={`tab${route.name === "profile" ? " tab-active" : ""}`}
-            aria-current={route.name === "profile" ? "page" : undefined}
-            onClick={() => pickTab("profile")}
-          >
-            {t("Profile")}
-          </button>
+          {TABS.map(({ name, label }) => (
+            <button
+              key={name}
+              type="button"
+              className={`tab${route.name === name ? " tab-active" : ""}`}
+              aria-current={route.name === name ? "page" : undefined}
+              onClick={() => pickTab(name)}
+            >
+              {t(label)}
+            </button>
+          ))}
         </nav>
       </div>
     </NavProvider>
