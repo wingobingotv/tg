@@ -12,6 +12,9 @@ type TelegramUserHint = {
   language_code?: string
 }
 
+/** What Telegram's invoice sheet reports when it closes. A hint only, never proof of payment. */
+export type InvoiceStatus = "paid" | "cancelled" | "failed" | "pending"
+
 type BackButton = {
   show(): void
   hide(): void
@@ -34,6 +37,7 @@ export type TelegramWebApp = {
   openLink(url: string, options?: { try_instant_view?: boolean }): void
   openTelegramLink(url: string): void
   showConfirm?(message: string, cb: (ok: boolean) => void): void
+  openInvoice?(url: string, cb?: (status: InvoiceStatus) => void): void
   onEvent(event: string, cb: () => void): void
   offEvent(event: string, cb: () => void): void
   BackButton?: BackButton
@@ -77,6 +81,27 @@ export function openExternal(url: string): void {
   const app = getWebApp()
   if (app) app.openLink(url)
   else window.open(url, "_blank", "noopener,noreferrer")
+}
+
+/**
+ * Opens Telegram's payment sheet for an invoice link and resolves with what
+ * the sheet reported. Older clients without `openInvoice` open the link
+ * instead and resolve "pending": the server decides what happened either way.
+ */
+export function openInvoice(url: string): Promise<InvoiceStatus> {
+  const app = getWebApp()
+  if (app?.openInvoice && app.isVersionAtLeast("6.1")) {
+    return new Promise((resolve) => {
+      try {
+        app.openInvoice?.(url, (status) => resolve(status))
+      } catch {
+        resolve("failed")
+      }
+    })
+  }
+  if (app) app.openTelegramLink(url)
+  else window.open(url, "_blank", "noopener,noreferrer")
+  return Promise.resolve("pending")
 }
 
 export function confirmAction(message: string): Promise<boolean> {

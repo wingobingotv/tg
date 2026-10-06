@@ -8,6 +8,7 @@ export type Route =
   | { name: "wingo"; gameId: string }
   | { name: "live"; gameId: string }
   | { name: "winner"; gameId: string }
+  | { name: "add-funds" }
 
 export type TabName = "home" | "winners" | "profile"
 

@@ -6,6 +6,7 @@ import { RecaptchaProvider } from "./auth/recaptcha"
 import { useTelegramAuth } from "./auth/useTelegramAuth"
 import { Logo, Spinner } from "./components/ui"
 import { isTab, NavProvider, routeFromStartParam, type Navigator, type Route, type TabName } from "./navigation"
+import { AddFundsScreen } from "./screens/AddFundsScreen"
 import { HomeScreen } from "./screens/HomeScreen"
 import { ProfileScreen } from "./screens/ProfileScreen"
 import { StatusScreen } from "./screens/StatusScreen"
@@ -60,6 +61,8 @@ function Screen({ route, onSessionEnd }: { route: Route; onSessionEnd: Parameter
       return <ProfileScreen onSessionEnd={onSessionEnd} />
     case "winners":
       return <WinnersScreen />
+    case "add-funds":
+      return <AddFundsScreen />
     case "winner":
       return <WinnerDetailScreen key={route.gameId} gameId={route.gameId} />
     case "wingo":

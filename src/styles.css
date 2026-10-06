@@ -745,6 +745,56 @@ p {
   border-block-start: 1px solid var(--home-border);
 }
 
+/* Telegram Stars and other payment methods */
+.stars-amounts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.stars-amount {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  min-block-size: 64px;
+  padding: 10px;
+  border-radius: 12px;
+  border: 1px solid var(--home-border);
+  background: transparent;
+  color: var(--home-text);
+  font: inherit;
+  cursor: pointer;
+}
+
+.stars-amount-on {
+  border-color: var(--home-accent);
+  background: color-mix(in srgb, var(--home-accent) 12%, transparent);
+}
+
+.stars-price {
+  margin: 0;
+  color: var(--home-accent);
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.pay-stars,
+.pay-other {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-block-start: 12px;
+  border-block-start: 1px solid var(--home-border);
+}
+
+.pay-stars-title,
+.pay-other-title {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+
 .summary-total {
   font-weight: 700;
   color: var(--home-text);

@@ -1,10 +1,9 @@
-import { useQueryClient } from "@tanstack/react-query"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { useRef, useState } from "react"
 import { useTranslation } from "react-i18next"
 import { apiErrorDetail, getDisplayCurrency, post } from "../api"
-import { config } from "../config"
 import { useWallet, wingoGameKey, wingoTicketsKey } from "../data"
-import { formatMoney } from "../format"
+import { formatCount, formatMoney } from "../format"
 import {
   cartProblem,
   comboKey,
@@ -23,8 +22,10 @@ import {
   type WingoGame,
 } from "../games/wingo"
 import { currentLanguage } from "../i18n"
-import { haptic, openExternal } from "../telegram"
+import { fetchStarsQuote, payWithStars, type StarsOrder, type StarsResult } from "../payments/stars"
+import { haptic } from "../telegram"
 import { trackDebug } from "../telemetry"
+import { OtherPaymentMethods, StarsResultNotice, useStarsOptions } from "./payments"
 import { Alert, Button, Field } from "./ui"
 
 const EMPTY: Draft = { numbers: [], lucky: null }
@@ -222,11 +223,12 @@ export function TicketShop({
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<{ text: string; insufficient: boolean } | null>(null)
   const [notice, setNotice] = useState("")
+  const [starsBusy, setStarsBusy] = useState(false)
+  const [starsResult, setStarsResult] = useState<StarsResult | null>(null)
   const inFlight = useRef(false)
+  const starsOptions = useStarsOptions()
 
   const capacity = rules.maxTicketsPerPurchase - owned.length
-  if (capacity <= 0) return <Alert tone="info">{t("You already have the maximum tickets for this draw")}</Alert>
-
   const count = drafts.length
   const q = quote(count, game.ticketPrice, game.freeTicketsRemaining)
   const discount = applied && applied.forAmount === q.payable ? applied : null
@@ -234,6 +236,24 @@ export function TicketShop({
   const spendable = wallet.data ? wallet.data.balance + wallet.data.bonusBalance : null
   const problem = cartProblem(drafts, owned, rules)
   const money = (n: number) => formatMoney(n, currency, lang)
+
+  const starsOrder: StarsOrder = {
+    purpose: "ticket",
+    tournamentId: game.gameId,
+    tickets: drafts.map((d) => ({ numbers: d.numbers, chanceNumber: d.lucky })),
+  }
+  const starsOffered = starsOptions.data?.ticket.enabled === true && capacity > 0 && q.payable > 0
+  const starsUsable = starsOffered && !discount && !problem
+  const starsQuote = useQuery({
+    queryKey: ["stars", "quote", game.gameId, JSON.stringify(starsOrder.tickets), q.payable],
+    enabled: starsUsable,
+    staleTime: 15_000,
+    retry: false,
+    queryFn: () => fetchStarsQuote(starsOrder),
+  })
+  const stars = starsUsable ? (starsQuote.data ?? null) : null
+
+  if (capacity <= 0) return <Alert tone="info">{t("You already have the maximum tickets for this draw")}</Alert>
 
   const takenExcept = (skip: number) =>
     new Set([
@@ -247,12 +267,14 @@ export function TicketShop({
     setActive((a) => Math.min(a, n - 1))
     setError(null)
     setNotice("")
+    setStarsResult(null)
   }
 
   const update = (i: number, d: Draft) => {
     setDrafts((ds) => ds.map((x, j) => (j === i ? d : x)))
     setError(null)
     setNotice("")
+    setStarsResult(null)
   }
 
   const quickPickAll = () => {
@@ -269,6 +291,7 @@ export function TicketShop({
     setDrafts(next)
     setError(null)
     setNotice("")
+    setStarsResult(null)
   }
 
   const refresh = () => {
@@ -293,6 +316,7 @@ export function TicketShop({
     setBusy(true)
     setError(null)
     setNotice("")
+    setStarsResult(null)
     try {
       await post("/wingo/setTickets", {
         tournamentId: game.gameId,
@@ -315,6 +339,38 @@ export function TicketShop({
     } finally {
       inFlight.current = false
       setBusy(false)
+    }
+  }
+
+  /** The cart is priced in Stars on the server; the tickets are bought once the payment is credited. */
+  const payStars = async () => {
+    if (inFlight.current) return
+    if (problem) {
+      setError({ text: t(problem), insufficient: false })
+      haptic("warning")
+      return
+    }
+    inFlight.current = true
+    setStarsBusy(true)
+    setError(null)
+    setNotice("")
+    setStarsResult(null)
+    try {
+      const result = await payWithStars(starsOrder, lang)
+      setStarsResult(result)
+      if (result.kind === "settled" && result.outcome === "tickets") {
+        haptic("success")
+        setDrafts([EMPTY])
+        setActive(0)
+        setApplied(null)
+        onPurchased()
+      } else if (result.kind === "refused" || (result.kind === "settled" && result.outcome === "tickets_in_wallet")) {
+        haptic("error")
+      }
+      refresh()
+    } finally {
+      inFlight.current = false
+      setStarsBusy(false)
     }
   }
 
@@ -418,19 +474,45 @@ export function TicketShop({
             {error.insufficient ? <strong>{t("Insufficient balance")}. </strong> : null}
             {error.text}
           </Alert>
-          {error.insufficient ? (
-            <Button variant="secondary" onClick={() => openExternal(`${config?.siteUrl ?? ""}/${lang}/more/deposit`)}>
-              {t("Add funds on the website")}
-            </Button>
-          ) : null}
         </div>
       ) : null}
       {notice ? <Alert tone="info">{notice}</Alert> : null}
+      {starsResult ? <StarsResultNotice result={starsResult} /> : null}
 
-      <Button busy={busy} disabled={Boolean(problem)} onClick={() => void buy()}>
+      <Button
+        variant={starsUsable && error?.insufficient ? "secondary" : "primary"}
+        busy={busy}
+        disabled={Boolean(problem) || starsBusy}
+        onClick={() => void buy()}
+      >
         {payable > 0 ? t("Pay {{amount}} with wallet balance", { amount: money(payable) }) : t("Get my tickets for free")}
       </Button>
       {problem && !error ? <p className="muted small">{t(problem)}</p> : null}
+
+      {starsOffered ? (
+        <section className="pay-stars" aria-labelledby="pay-stars-title">
+          <p id="pay-stars-title" className="pay-stars-title">
+            {t("Pay with Telegram Stars")}
+          </p>
+          {discount ? (
+            <p className="muted small">{t("Discount codes apply to wallet payments only.")}</p>
+          ) : (
+            <>
+              {stars ? <p className="stars-price">{t("⭐ {{stars}} Stars", { stars: formatCount(stars, lang) })}</p> : null}
+              <Button
+                variant={error?.insufficient ? "primary" : "secondary"}
+                busy={starsBusy}
+                disabled={Boolean(problem) || busy}
+                onClick={() => void payStars()}
+              >
+                {stars ? t("Pay {{stars}} Stars", { stars: formatCount(stars, lang) }) : t("Pay with Telegram Stars")}
+              </Button>
+            </>
+          )}
+        </section>
+      ) : null}
+
+      {error?.insufficient ? <OtherPaymentMethods intent="ticket" gameId={game.gameId} /> : null}
     </section>
   )
 }

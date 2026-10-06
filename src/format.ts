@@ -22,6 +22,11 @@ export function formatMoney(value: unknown, currency: string, lang: Language): s
   }
 }
 
+/** A whole count (e.g. Stars) with the language's digits and grouping. */
+export function formatCount(value: unknown, lang: Language): string {
+  return new Intl.NumberFormat(LOCALE[lang], { maximumFractionDigits: 0 }).format(Math.round(toNumber(value)))
+}
+
 /** Draw time from the API (Unix seconds). Empty when missing. */
 export function formatDrawTime(epochSec: unknown, lang: Language): string {
   const sec = toNumber(epochSec)

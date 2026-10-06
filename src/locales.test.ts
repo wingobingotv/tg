@@ -9,8 +9,10 @@ import { AUTH_ERROR_COPY, GENERIC_ERROR, REOPEN_COPY } from "./auth/authFlow"
 import { COUNTDOWN_COPY, STATUS_COPY } from "./components/game"
 import { DETAIL_TIERS, EVENT_TYPES, TIMELINE_COPY } from "./games/winners"
 import { CADENCE_COPY, CART_PROBLEM_COPY, PRIZE_TIERS, PURCHASE_ERROR_COPY } from "./games/wingo"
+import { STARS_RESULT_COPY } from "./components/payments"
 import { CANNOT_SEND_COPY, CHAT_ERROR_COPY } from "./live/chat"
 import { CONNECTION_COPY } from "./live/connection"
+import { STARS_ERROR_COPY } from "./payments/stars"
 
 const COPY_TABLES: Record<string, string>[] = [
   AUTH_ERROR_COPY,
@@ -22,6 +24,8 @@ const COPY_TABLES: Record<string, string>[] = [
   CHAT_ERROR_COPY,
   CANNOT_SEND_COPY,
   CONNECTION_COPY,
+  STARS_ERROR_COPY,
+  STARS_RESULT_COPY,
   Object.fromEntries(Object.entries(PRIZE_TIERS).map(([k, v]) => [k, v.label])),
   TIMELINE_COPY,
   Object.fromEntries(DETAIL_TIERS.map((d) => [d.tier, d.tier])),

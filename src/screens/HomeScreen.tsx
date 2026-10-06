@@ -2,7 +2,6 @@ import { useTranslation } from "react-i18next"
 import { getDisplayCurrency } from "../api"
 import { Countdown, StatusChip } from "../components/game"
 import { Alert, Button, Spinner } from "../components/ui"
-import { config } from "../config"
 import { useProfile, useWallet, useWingoFeed } from "../data"
 import { formatDrawTime, formatMoney, toNumber } from "../format"
 import {
@@ -21,10 +20,10 @@ import {
 import { useNow } from "../hooks/useNow"
 import { currentLanguage } from "../i18n"
 import { useNav } from "../navigation"
-import { openExternal } from "../telegram"
 
 function WalletCard({ ready }: { ready: boolean }) {
   const { t } = useTranslation()
+  const nav = useNav()
   const lang = currentLanguage()
   const wallet = useWallet(ready)
 
@@ -45,8 +44,8 @@ function WalletCard({ ready }: { ready: boolean }) {
               {t("Bonus balance")}: <span dir="ltr">{formatMoney(wallet.data.bonusBalance, wallet.data.currency, lang)}</span>
             </p>
           ) : null}
-          <Button variant="secondary" onClick={() => openExternal(`${config?.siteUrl ?? ""}/${lang}/more/deposit`)}>
-            {t("Add funds on the website")}
+          <Button variant="secondary" onClick={() => nav.open({ name: "add-funds" })}>
+            {t("Add funds")}
           </Button>
         </>
       ) : null}
