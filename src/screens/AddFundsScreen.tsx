@@ -87,7 +87,7 @@ export function AddFundsScreen() {
             {choice ? t("Pay {{stars}} Stars", { stars: formatCount(choice.stars, lang) }) : t("Choose an amount")}
           </Button>
         </section>
-      ) : options.data && !options.isPending ? (
+      ) : !options.isPending ? (
         <Alert tone="info">{t("Paying with Telegram Stars isn't available right now.")}</Alert>
       ) : null}
 
