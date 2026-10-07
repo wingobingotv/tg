@@ -1,10 +1,14 @@
 import { useQueryClient } from "@tanstack/react-query"
-import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from "react"
+import { lazy, Suspense, useCallback, useEffect, useMemo, useState, type ReactNode } from "react"
 import { useTranslation } from "react-i18next"
 import { LinkScreen } from "./auth/LinkScreen"
 import { RecaptchaProvider } from "./auth/recaptcha"
 import { useTelegramAuth } from "./auth/useTelegramAuth"
 import { Logo, Spinner } from "./components/ui"
+import { useWallet } from "./data"
+import { useDesign } from "./design"
+import { formatMoney } from "./format"
+import { currentLanguage } from "./i18n"
 import { isTab, NavProvider, routeFromStartParam, type Navigator, type Route, type TabName } from "./navigation"
 import { AddFundsScreen } from "./screens/AddFundsScreen"
 import { HomeScreen } from "./screens/HomeScreen"
@@ -23,6 +27,38 @@ const TABS: { name: TabName; label: string }[] = [
   { name: "winners", label: "Winners" },
   { name: "profile", label: "Profile" },
 ]
+
+/** Design B tab icons (24×24 line icons, stroked in currentColor). */
+const TAB_ICONS: Record<TabName, ReactNode> = {
+  home: <path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z" />,
+  winners: <path d="M8 4h8v4a4 4 0 0 1-8 0zM8 6H5a3 3 0 0 0 3 4M16 6h3a3 3 0 0 1-3 4M12 12v4M9 20h6M10 16h4v4h-4z" />,
+  profile: <path d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zm-8 9a8 8 0 0 1 16 0" />,
+}
+
+function TabIcon({ name }: { name: TabName }) {
+  return (
+    <svg className="tab-icon" viewBox="0 0 24 24" width="24" height="24" aria-hidden="true">
+      {TAB_ICONS[name]}
+    </svg>
+  )
+}
+
+/** Design B: the balance is always in sight, one tap from Add funds. */
+function TopbarWallet({ onOpen }: { onOpen: () => void }) {
+  const { t } = useTranslation()
+  const wallet = useWallet(true)
+  const lang = currentLanguage()
+  return (
+    <button type="button" className="topbar-wallet" onClick={onOpen} aria-label={t("Add funds")}>
+      <span className="topbar-balance" dir="ltr">
+        {wallet.data ? formatMoney(wallet.data.balance, wallet.data.currency, lang) : "…"}
+      </span>
+      <span className="topbar-plus" aria-hidden="true">
+        +
+      </span>
+    </button>
+  )
+}
 
 function useBackButton(visible: boolean, onBack: () => void) {
   useEffect(() => {
@@ -86,6 +122,7 @@ function Shell({
   startRoute: Route | null
 }) {
   const { t } = useTranslation()
+  const design = useDesign()
   const [{ tab, stack }, setHistory] = useState<{ tab: TabName; stack: Route[] }>(() =>
     startRoute && isTab(startRoute)
       ? { tab: startRoute.name, stack: [] }
@@ -120,6 +157,7 @@ function Shell({
         <header className="topbar">
           <Logo size={32} />
           <span className="brand">WingoBingo</span>
+          {design === "b" ? <TopbarWallet onOpen={() => nav.open({ name: "add-funds" })} /> : null}
         </header>
         <main className="content">
           <Screen route={route} onSessionEnd={onSessionEnd} />
@@ -133,6 +171,7 @@ function Shell({
               aria-current={route.name === name ? "page" : undefined}
               onClick={() => pickTab(name)}
             >
+              {design === "b" ? <TabIcon name={name} /> : null}
               {t(label)}
             </button>
           ))}

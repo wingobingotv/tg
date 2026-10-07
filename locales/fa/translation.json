@@ -314,5 +314,12 @@
   "This payment was refunded.": "این پرداخت بازگردانده شد.",
   "The payment didn't go through. You weren't charged.": "پرداخت انجام نشد و مبلغی از شما کسر نشد.",
   "Your payment is being confirmed. Your wallet updates as soon as Telegram confirms it.": "پرداخت شما در حال تأیید است. به‌محض تأیید تلگرام، کیف پول‌تان به‌روز می‌شود.",
-  "Payment cancelled. You weren't charged.": "پرداخت لغو شد و مبلغی از شما کسر نشد."
+  "Payment cancelled. You weren't charged.": "پرداخت لغو شد و مبلغی از شما کسر نشد.",
+  "Biggest prize right now": "بزرگ‌ترین جایزهٔ این لحظه",
+  "Play now": "همین حالا بازی کنید",
+  "How to play": "چطور بازی کنیم؟",
+  "Pick your numbers": "عددهایتان را انتخاب کنید",
+  "Buy your ticket": "بلیت‌تان را بخرید",
+  "Watch the live draw": "قرعه‌کشی زنده را تماشا کنید",
+  "Match numbers and win": "با عددهای درست جایزه ببرید"
 }

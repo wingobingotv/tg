@@ -314,5 +314,12 @@
   "This payment was refunded.": "Ce paiement a été remboursé.",
   "The payment didn't go through. You weren't charged.": "Le paiement n'a pas abouti. Aucun montant ne vous a été prélevé.",
   "Your payment is being confirmed. Your wallet updates as soon as Telegram confirms it.": "Votre paiement est en cours de confirmation. Votre portefeuille sera mis à jour dès que Telegram l'aura confirmé.",
-  "Payment cancelled. You weren't charged.": "Paiement annulé. Aucun montant ne vous a été prélevé."
+  "Payment cancelled. You weren't charged.": "Paiement annulé. Aucun montant ne vous a été prélevé.",
+  "Biggest prize right now": "Le plus gros lot du moment",
+  "Play now": "Jouer maintenant",
+  "How to play": "Comment jouer",
+  "Pick your numbers": "Choisissez vos numéros",
+  "Buy your ticket": "Achetez votre ticket",
+  "Watch the live draw": "Suivez le tirage en direct",
+  "Match numbers and win": "Trouvez les bons numéros et gagnez"
 }

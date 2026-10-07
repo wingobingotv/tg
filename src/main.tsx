@@ -4,15 +4,18 @@ import { createRoot } from "react-dom/client"
 import { App } from "./App"
 import { ApiError } from "./api"
 import { config } from "./config"
+import { initDesign } from "./design"
 import { initI18n } from "./i18n"
 import { getWebApp, initWebApp, telegramLanguageHint } from "./telegram"
 import { trackDebug } from "./telemetry"
 import "./fonts.css"
 import "./styles.css"
+import "./styles-b.css"
 
 const app = getWebApp()
 if (app) initWebApp(app)
 initI18n(telegramLanguageHint(app), config?.defaultLang ?? "en")
+initDesign()
 
 window.addEventListener("error", (e) => {
   trackDebug("ui.error", "error", String(e.message || "window error"), { source: String(e.filename || "") })

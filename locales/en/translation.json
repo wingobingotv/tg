@@ -314,5 +314,12 @@
   "This payment was refunded.": "This payment was refunded.",
   "The payment didn't go through. You weren't charged.": "The payment didn't go through. You weren't charged.",
   "Your payment is being confirmed. Your wallet updates as soon as Telegram confirms it.": "Your payment is being confirmed. Your wallet updates as soon as Telegram confirms it.",
-  "Payment cancelled. You weren't charged.": "Payment cancelled. You weren't charged."
+  "Payment cancelled. You weren't charged.": "Payment cancelled. You weren't charged.",
+  "Biggest prize right now": "Biggest prize right now",
+  "Play now": "Play now",
+  "How to play": "How to play",
+  "Pick your numbers": "Pick your numbers",
+  "Buy your ticket": "Buy your ticket",
+  "Watch the live draw": "Watch the live draw",
+  "Match numbers and win": "Match numbers and win"
 }

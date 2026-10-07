@@ -58,11 +58,21 @@ export function initWebApp(app: TelegramWebApp): void {
   try {
     app.ready()
     app.expand()
+  } catch {
+    // Older clients lack some methods; the app still works without them.
+  }
+  setChromeColor(app, BRAND_BG)
+}
+
+/** Telegram's own header, background and bottom bar, matched to the page. */
+export function setChromeColor(app: TelegramWebApp | null, color: string): void {
+  if (!app) return
+  try {
     if (app.isVersionAtLeast("6.1")) {
-      app.setHeaderColor?.(BRAND_BG)
-      app.setBackgroundColor?.(BRAND_BG)
+      app.setHeaderColor?.(color)
+      app.setBackgroundColor?.(color)
     }
-    if (app.isVersionAtLeast("7.10")) app.setBottomBarColor?.(BRAND_BG)
+    if (app.isVersionAtLeast("7.10")) app.setBottomBarColor?.(color)
   } catch {
     // Older clients lack some methods; the app still works without them.
   }

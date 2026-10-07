@@ -8,7 +8,7 @@ import fr from "../locales/fr/translation.json"
 import { AUTH_ERROR_COPY, GENERIC_ERROR, REOPEN_COPY } from "./auth/authFlow"
 import { COUNTDOWN_COPY, STATUS_COPY } from "./components/game"
 import { DETAIL_TIERS, EVENT_TYPES, TIMELINE_COPY } from "./games/winners"
-import { CADENCE_COPY, CART_PROBLEM_COPY, PRIZE_TIERS, PURCHASE_ERROR_COPY } from "./games/wingo"
+import { CADENCE_COPY, CART_PROBLEM_COPY, HOW_TO_PLAY, PRIZE_TIERS, PURCHASE_ERROR_COPY } from "./games/wingo"
 import { STARS_RESULT_COPY } from "./components/payments"
 import { CANNOT_SEND_COPY, CHAT_ERROR_COPY } from "./live/chat"
 import { CONNECTION_COPY } from "./live/connection"
@@ -39,6 +39,7 @@ const COPY_TABLES: Record<string, string>[] = [
     ]),
   ),
   { home: "Home", winners: "Winners", profile: "Profile" },
+  Object.fromEntries(HOW_TO_PLAY.map((s, i) => [String(i), s.text])),
 ]
 
 const SRC = path.dirname(new URL(import.meta.url).pathname)

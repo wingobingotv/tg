@@ -355,6 +355,14 @@ export const CADENCE_COPY: Record<Cadence, { label: string; short: string; hint:
   hourly: { label: "Every Hour", short: "Hourly", hint: "Steady rhythm", value: "1", unit: "Hr" },
 }
 
+/** Design B "How to play" steps. Text is translated copy. */
+export const HOW_TO_PLAY = [
+  { icon: "🎯", text: "Pick your numbers" },
+  { icon: "🎟️", text: "Buy your ticket" },
+  { icon: "📺", text: "Watch the live draw" },
+  { icon: "🏆", text: "Match numbers and win" },
+] as const
+
 const PLAYABLE: readonly GameStatus[] = ["live_now", "result_being_announced", "registration_open", "starting_soon"]
 const GROUP_GRACE_MS = 5 * MINUTE
 

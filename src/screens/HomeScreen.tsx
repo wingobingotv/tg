@@ -3,11 +3,13 @@ import { getDisplayCurrency } from "../api"
 import { Countdown, StatusChip } from "../components/game"
 import { Alert, Button, Spinner } from "../components/ui"
 import { useProfile, useWallet, useWingoFeed } from "../data"
+import { useDesign } from "../design"
 import { formatDrawTime, formatMoney, toNumber } from "../format"
 import {
   CADENCE_COPY,
   CADENCES,
   countdown,
+  HOW_TO_PLAY,
   gameStatus,
   isHostedShow,
   isLiveStatus,
@@ -259,8 +261,66 @@ function PlayToday({ slots, now }: { slots: Record<Cadence, WingoGame | null>; n
   )
 }
 
+/** Design B: the biggest prize on offer, first thing on Home. */
+function JackpotBanner({ entries, now }: { entries: Entry[]; now: number }) {
+  const { t } = useTranslation()
+  const nav = useNav()
+  const lang = currentLanguage()
+  const top = entries
+    .filter((e) => e.game.prizePool > 0)
+    .sort((a, b) => b.game.prizePool - a.game.prizePool || byDraw(a, b))[0]
+  if (!top) return null
+  const { game, status } = top
+  const live = isLiveStatus(status)
+  const timer = countdown(game, status, now)
+  const open = () => nav.open(live ? { name: "live", gameId: game.gameId } : { name: "wingo", gameId: game.gameId })
+
+  return (
+    <section className="jackpot" aria-labelledby="jackpot-title">
+      <p className="jackpot-eyebrow" id="jackpot-title">
+        {t("Biggest prize right now")}
+      </p>
+      <p className="jackpot-amount" dir="ltr">
+        {formatMoney(game.prizePool, getDisplayCurrency(), lang)}
+      </p>
+      <p className="jackpot-game">{game.name}</p>
+      <div className="jackpot-row">
+        <StatusChip status={status} />
+        {timer.kind !== "none" ? <Countdown kind={timer.kind} targetMs={timer.targetMs} now={now} /> : null}
+      </div>
+      <Button onClick={open}>{live ? t("Watch now") : game.isTicketingOpen ? t("Play now") : t("View details")}</Button>
+    </section>
+  )
+}
+
+/** Design B: the game in four steps, for players who are new to it. */
+function HowToPlay() {
+  const { t } = useTranslation()
+  return (
+    <section className="howto" aria-labelledby="howto-title">
+      <h2 className="section-title" id="howto-title">
+        {t("How to play")}
+      </h2>
+      <ol className="howto-steps">
+        {HOW_TO_PLAY.map((s, i) => (
+          <li key={s.text} className="howto-step">
+            <span className="howto-icon" aria-hidden="true">
+              {s.icon}
+            </span>
+            <span className="howto-num" aria-hidden="true">
+              {i + 1}
+            </span>
+            <span className="howto-text">{t(s.text)}</span>
+          </li>
+        ))}
+      </ol>
+    </section>
+  )
+}
+
 export function HomeScreen() {
   const { t } = useTranslation()
+  const design = useDesign()
   const profile = useProfile()
   const ready = profile.isSuccess
   const feed = useWingoFeed(ready)
@@ -298,7 +358,11 @@ export function HomeScreen() {
           </Button>
         </div>
       ) : null}
+      {design === "b" && !feed.isPending && !feed.isError ? (
+        <JackpotBanner entries={[...liveNow, ...shows, ...scheduled]} now={now} />
+      ) : null}
       <ShowSection title={t("Live now")} entries={liveNow} now={now} />
+      {design === "b" && !feed.isPending && !feed.isError ? <HowToPlay /> : null}
       <ShowSection title={t("Live shows")} entries={shows} now={now} />
       {!feed.isPending && !feed.isError ? <PlayToday slots={today.slots} now={now} /> : null}
       <ShowSection title={t("Next Shows")} entries={scheduled} now={now} />

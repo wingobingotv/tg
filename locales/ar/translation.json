@@ -314,5 +314,12 @@
   "This payment was refunded.": "تم استرداد هذه الدفعة.",
   "The payment didn't go through. You weren't charged.": "لم تكتمل عملية الدفع، ولم يُخصم منك أي مبلغ.",
   "Your payment is being confirmed. Your wallet updates as soon as Telegram confirms it.": "جارٍ تأكيد دفعتك، وسيُحدَّث رصيد محفظتك فور تأكيد تيليجرام.",
-  "Payment cancelled. You weren't charged.": "أُلغيت عملية الدفع، ولم يُخصم منك أي مبلغ."
+  "Payment cancelled. You weren't charged.": "أُلغيت عملية الدفع، ولم يُخصم منك أي مبلغ.",
+  "Biggest prize right now": "أكبر جائزة الآن",
+  "Play now": "العب الآن",
+  "How to play": "طريقة اللعب",
+  "Pick your numbers": "اختر أرقامك",
+  "Buy your ticket": "اشترِ تذكرتك",
+  "Watch the live draw": "تابع السحب المباشر",
+  "Match numbers and win": "طابِق الأرقام واربح"
 }
