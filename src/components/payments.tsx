@@ -72,7 +72,7 @@ export function OtherPaymentMethods({ intent, gameId }: { intent: "deposit" | "t
         {t("Other payment methods")}
       </h3>
       <p className="muted small">
-        {t("Cards, crypto and other options are on the WingoBingo website. You'll be signed in automatically.")}
+        {t("More payment options are on the WingoBingo website. You'll be signed in automatically.")}
       </p>
       <Button variant="secondary" busy={busy} onClick={() => void open()}>
         {t("Other payment methods")}

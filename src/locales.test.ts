@@ -6,12 +6,14 @@ import en from "../locales/en/translation.json"
 import fa from "../locales/fa/translation.json"
 import fr from "../locales/fr/translation.json"
 import { AUTH_ERROR_COPY, GENERIC_ERROR, REOPEN_COPY } from "./auth/authFlow"
+import { METHOD_COPY } from "./components/deposit"
 import { COUNTDOWN_COPY, STATUS_COPY } from "./components/game"
 import { DETAIL_TIERS, EVENT_TYPES, TIMELINE_COPY } from "./games/winners"
 import { CADENCE_COPY, CART_PROBLEM_COPY, HOW_TO_PLAY, PRIZE_TIERS, PURCHASE_ERROR_COPY } from "./games/wingo"
 import { STARS_RESULT_COPY } from "./components/payments"
 import { CANNOT_SEND_COPY, CHAT_ERROR_COPY } from "./live/chat"
 import { CONNECTION_COPY } from "./live/connection"
+import { DEPOSIT_ERROR_COPY } from "./payments/deposit"
 import { STARS_ERROR_COPY } from "./payments/stars"
 
 const COPY_TABLES: Record<string, string>[] = [
@@ -26,6 +28,8 @@ const COPY_TABLES: Record<string, string>[] = [
   CONNECTION_COPY,
   STARS_ERROR_COPY,
   STARS_RESULT_COPY,
+  DEPOSIT_ERROR_COPY,
+  Object.fromEntries(Object.entries(METHOD_COPY).flatMap(([k, v]) => [[`${k}-title`, v.title], [`${k}-subtitle`, v.subtitle]])),
   Object.fromEntries(Object.entries(PRIZE_TIERS).map(([k, v]) => [k, v.label])),
   TIMELINE_COPY,
   Object.fromEntries(DETAIL_TIERS.map((d) => [d.tier, d.tier])),

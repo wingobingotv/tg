@@ -9,9 +9,11 @@ import { useWallet } from "./data"
 import { useDesign } from "./design"
 import { formatMoney } from "./format"
 import { currentLanguage } from "./i18n"
-import { isTab, NavProvider, routeFromStartParam, type Navigator, type Route, type TabName } from "./navigation"
+import { isTab, NavProvider, routeFromStartParam, sameRoute, type Navigator, type Route, type TabName } from "./navigation"
 import { AddFundsScreen } from "./screens/AddFundsScreen"
+import { DepositScreen } from "./screens/DepositScreen"
 import { HomeScreen } from "./screens/HomeScreen"
+import { PaymentScreen } from "./screens/PaymentScreen"
 import { ProfileScreen } from "./screens/ProfileScreen"
 import { StatusScreen } from "./screens/StatusScreen"
 import { WinnerDetailScreen } from "./screens/WinnerDetailScreen"
@@ -99,6 +101,10 @@ function Screen({ route, onSessionEnd }: { route: Route; onSessionEnd: Parameter
       return <WinnersScreen />
     case "add-funds":
       return <AddFundsScreen />
+    case "deposit":
+      return <DepositScreen key={route.method} method={route.method} />
+    case "payment":
+      return <PaymentScreen key={route.paymentId} paymentId={route.paymentId} />
     case "winner":
       return <WinnerDetailScreen key={route.gameId} gameId={route.gameId} />
     case "wingo":
@@ -144,6 +150,13 @@ function Shell({
         }
         window.scrollTo(0, 0)
       },
+      replace: (next) => {
+        setHistory((h) => {
+          const below = h.stack.slice(0, -1).filter((r) => !sameRoute(r, next))
+          return { ...h, stack: [...below, next].slice(-MAX_STACK) }
+        })
+        window.scrollTo(0, 0)
+      },
       back,
     }),
     [back, pickTab],
@@ -179,10 +192,6 @@ function Shell({
       </div>
     </NavProvider>
   )
-}
-
-function sameRoute(a: Route, b: Route): boolean {
-  return a.name === b.name && ("gameId" in a ? a.gameId : "") === ("gameId" in b ? b.gameId : "")
 }
 
 export function App() {

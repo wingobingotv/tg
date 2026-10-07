@@ -22,10 +22,11 @@ import {
   type WingoGame,
 } from "../games/wingo"
 import { currentLanguage } from "../i18n"
+import { useNav } from "../navigation"
 import { fetchStarsQuote, payWithStars, type StarsOrder, type StarsResult } from "../payments/stars"
 import { haptic } from "../telegram"
 import { trackDebug } from "../telemetry"
-import { OtherPaymentMethods, StarsResultNotice, useStarsOptions } from "./payments"
+import { StarsResultNotice, useStarsOptions } from "./payments"
 import { Alert, Button, Field } from "./ui"
 
 const EMPTY: Draft = { numbers: [], lucky: null }
@@ -214,6 +215,7 @@ export function TicketShop({
 }) {
   const { t } = useTranslation()
   const lang = currentLanguage()
+  const nav = useNav()
   const currency = getDisplayCurrency()
   const queryClient = useQueryClient()
   const wallet = useWallet(true)
@@ -512,7 +514,17 @@ export function TicketShop({
         </section>
       ) : null}
 
-      {error?.insufficient ? <OtherPaymentMethods intent="ticket" gameId={game.gameId} /> : null}
+      {error?.insufficient ? (
+        <section className="pay-other" aria-labelledby="ticket-topup-title">
+          <p id="ticket-topup-title" className="pay-other-title">
+            {t("Top up your wallet")}
+          </p>
+          <p className="muted small">{t("Add funds without leaving the app, then come back here to finish your purchase.")}</p>
+          <Button variant="secondary" onClick={() => nav.open({ name: "add-funds" })}>
+            {t("Add funds")}
+          </Button>
+        </section>
+      ) : null}
     </section>
   )
 }

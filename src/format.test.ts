@@ -46,6 +46,12 @@ describe("routeFromStartParam", () => {
     expect(routeFromStartParam("winners")).toEqual({ name: "winners" })
   })
 
+  it("reopens a payment after the card page", () => {
+    expect(routeFromStartParam("pay_90210")).toEqual({ name: "payment", paymentId: "90210" })
+    expect(routeFromStartParam("pay_")).toBeNull()
+    expect(routeFromStartParam("pay_12a")).toBeNull()
+  })
+
   it("ignores anything else", () => {
     expect(routeFromStartParam("winner_1&x")).toBeNull()
     expect(routeFromStartParam("profile")).toBeNull()

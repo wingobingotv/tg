@@ -477,6 +477,104 @@
   border-block-start-color: var(--home-border);
 }
 
+/* ---------- Deposit methods and payment status ---------- */
+
+:root[data-design="b"] .method-row,
+:root[data-design="b"] .method-picked {
+  border-radius: 18px;
+  background: var(--b-surface);
+  border-color: var(--home-border);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  transition:
+    transform 0.12s,
+    border-color 0.2s,
+    box-shadow 0.2s;
+}
+
+:root[data-design="b"] .method-row:active {
+  transform: scale(0.98);
+  border-color: var(--home-accent);
+  box-shadow: var(--b-glow-gold);
+}
+
+:root[data-design="b"] .method-badge-icon {
+  border-radius: 14px;
+  color: var(--home-accent-fg);
+  background: var(--b-cta);
+  box-shadow: var(--b-glow-gold);
+}
+
+:root[data-design="b"] .method-title {
+  font-weight: 800;
+}
+
+:root[data-design="b"] .method-chevron {
+  border-color: var(--b-violet);
+}
+
+:root[data-design="b"] .amount-input {
+  font-size: 1.6rem;
+  font-weight: 900;
+  color: #ffd23f;
+}
+
+:root[data-design="b"] .card-accent {
+  border-color: rgba(255, 163, 26, 0.5);
+  box-shadow: var(--b-glow-gold);
+}
+
+:root[data-design="b"] .copy-text {
+  border-radius: 14px;
+  background: rgba(10, 6, 24, 0.7);
+}
+
+:root[data-design="b"] .copy-btn {
+  border-radius: 14px;
+  border-color: transparent;
+  background: var(--b-cta);
+  color: var(--home-accent-fg);
+  box-shadow: var(--b-glow-gold);
+}
+
+:root[data-design="b"] .crypto-qr {
+  border-radius: 20px;
+  box-shadow:
+    0 0 0 3px rgba(139, 92, 246, 0.5),
+    var(--b-glow-violet);
+}
+
+:root[data-design="b"] .voucher-format {
+  border-color: rgba(139, 92, 246, 0.5);
+  background: rgba(139, 92, 246, 0.1);
+  color: var(--b-cyan);
+}
+
+:root[data-design="b"] .outcome-icon {
+  color: var(--b-cyan);
+  background: rgba(34, 211, 238, 0.14);
+  box-shadow: 0 0 24px rgba(34, 211, 238, 0.35);
+}
+
+:root[data-design="b"] .outcome-paid .outcome-icon {
+  color: #0a2a1a;
+  background: var(--b-green);
+  box-shadow: 0 0 28px rgba(34, 229, 139, 0.55);
+}
+
+:root[data-design="b"] .outcome-failed .outcome-icon {
+  color: #fff;
+  background: var(--home-danger);
+  box-shadow: 0 0 24px rgba(255, 59, 92, 0.45);
+}
+
+:root[data-design="b"] .outcome-amount {
+  background: var(--b-gold-text);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  font-weight: 900;
+}
+
 /* ---------- Chips, fields, alerts ---------- */
 
 :root[data-design="b"] .chip {

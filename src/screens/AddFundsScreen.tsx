@@ -1,21 +1,32 @@
 import { useQueryClient } from "@tanstack/react-query"
 import { useRef, useState } from "react"
 import { useTranslation } from "react-i18next"
+import { METHOD_COPY, MethodIcon, useMiniappMethods } from "../components/deposit"
 import { OtherPaymentMethods, StarsResultNotice, STARS_OPTIONS_KEY, useStarsOptions } from "../components/payments"
 import { Alert, Button, Spinner } from "../components/ui"
 import { useWallet } from "../data"
 import { formatCount, formatMoney } from "../format"
 import { currentLanguage } from "../i18n"
+import { useNav } from "../navigation"
+import { DEPOSIT_METHODS } from "../payments/deposit"
 import { payWithStars, type StarsResult } from "../payments/stars"
 import { haptic } from "../telegram"
 
-/** Wallet top-up: Telegram Stars in the app, everything else on the website. */
+/**
+ * Wallet top-up, all inside the app: Telegram Stars, then every method the
+ * admins switched on (card, crypto, voucher, gift code). The website link is
+ * offered only while some method is switched off here.
+ */
 export function AddFundsScreen() {
   const { t } = useTranslation()
   const lang = currentLanguage()
+  const nav = useNav()
   const queryClient = useQueryClient()
   const wallet = useWallet(true)
   const options = useStarsOptions()
+  const methods = useMiniappMethods()
+  const inApp = methods.data ? DEPOSIT_METHODS.filter((m) => methods.data[m]) : []
+  const allInApp = inApp.length === DEPOSIT_METHODS.length
   const [picked, setPicked] = useState<number | null>(null)
   const [busy, setBusy] = useState(false)
   const [result, setResult] = useState<StarsResult | null>(null)
@@ -91,7 +102,29 @@ export function AddFundsScreen() {
         <Alert tone="info">{t("Paying with Telegram Stars isn't available right now.")}</Alert>
       ) : null}
 
-      <OtherPaymentMethods intent="deposit" />
+      {inApp.length > 0 ? (
+        <section className="stack" aria-labelledby="more-methods-title">
+          <h2 id="more-methods-title" className="card-title">
+            {t("More ways to pay")}
+          </h2>
+          <div className="method-list">
+            {inApp.map((m) => (
+              <button key={m} type="button" className="method-row" onClick={() => nav.open({ name: "deposit", method: m })}>
+                <span className="method-badge-icon">
+                  <MethodIcon method={m} />
+                </span>
+                <span className="method-text">
+                  <span className="method-title">{t(METHOD_COPY[m].title)}</span>
+                  <span className="method-sub">{t(METHOD_COPY[m].subtitle)}</span>
+                </span>
+                <span className="method-chevron" aria-hidden="true" />
+              </button>
+            ))}
+          </div>
+        </section>
+      ) : null}
+
+      {methods.isPending || allInApp ? null : <OtherPaymentMethods intent="deposit" />}
     </div>
   )
 }
