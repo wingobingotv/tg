@@ -65,6 +65,20 @@ export type WingoGame = {
   presenterImageUrl: string | null
   replayUrl: string | null
   ticketRules: TicketRules | null
+  /** Settlement snapshot (`winnersDetails`); empty until the draw is finalized. */
+  winners: WinnerTier[]
+}
+
+/**
+ * One settled level, as the website's `normalizeWingoWinnerTiers` reads it:
+ * how many tickets won it, its pool, and what one winning ticket is paid.
+ */
+export type WinnerTier = {
+  name: string | null
+  condition: string
+  winners: number
+  pool: number
+  perTicket: number
 }
 
 export type WingoGameResult = { locked: true; gameId: string } | { locked: false; game: WingoGame }
@@ -293,7 +307,146 @@ export function parseWingoGame(raw: unknown): WingoGame | null {
       : https(influencer.profileImageUrl) ?? https(influencer.imageUrl) ?? https(influencer.avatar),
     replayUrl: replayUrlOf(g),
     ticketRules: parseTicketRules(g.ticketRules),
+    winners: parseWinnerTiers(g.winnersDetails),
   }
+}
+
+/** Places in draw order, which is also the order of `PRIZE_TIERS` (website `WINGO_PLACE_NAMES`). */
+const PLACE_NAMES = [
+  "firstPlace",
+  "secondPlace",
+  "thirdPlace",
+  "fourthPlace",
+  "fifthPlace",
+  "sixthPlace",
+  "seventhPlace",
+  "eighthPlace",
+] as const
+
+/**
+ * `winnersDetails` from the game or from `draw-finalized`. Writers differ: the
+ * cron names a tier by `place` and stores only the pot and the winner count,
+ * Studio adds `prizePerTicket`, so the share is recovered when it is missing.
+ */
+export function parseWinnerTiers(raw: unknown): WinnerTier[] {
+  let list: unknown = raw
+  if (typeof raw === "string") {
+    try {
+      list = JSON.parse(raw)
+    } catch {
+      return []
+    }
+  }
+  if (!Array.isArray(list)) return []
+  return list.map((item) => {
+    const t = rec(item)
+    const winners = num(t.ticketCount ?? t.userCount ?? t.numberOfWinners)
+    const pool = num(t.placePool) || num(t.totalPrize) || num(t.prizePerTicket)
+    const share = num(t.prizePerTicket)
+    const place = num(t.place)
+    const named = str(t.name)
+    return {
+      name: named || (place >= 1 && place <= PLACE_NAMES.length ? (PLACE_NAMES[place - 1] ?? null) : null),
+      condition: str(t.condition),
+      winners,
+      pool,
+      perTicket: share > 0 ? share : winners > 0 && pool > 0 ? pool / winners : 0,
+    }
+  })
+}
+
+export function winnersByName(tiers: readonly WinnerTier[]): Map<string, WinnerTier> {
+  const byName = new Map<string, WinnerTier>()
+  for (const tier of tiers) if (tier.name) byName.set(tier.name, tier)
+  return byName
+}
+
+export function totalWinners(tiers: readonly WinnerTier[]): number {
+  return tiers.reduce((sum, tier) => sum + tier.winners, 0)
+}
+
+/** A level the player's tickets have reached (website `QualifiedLevel`). */
+export type QualifiedLevel = {
+  name: string
+  label: string
+  mains: number
+  lucky: boolean
+  /** The whole pool for the level, before it is divided between winners. */
+  pool: number
+  /** How many of the player's tickets reached it. */
+  tickets: number
+  /** Known only once the draw is settled. */
+  winners: number | null
+  /** The player's settled payout for this level; null until settled. */
+  confirmed: number | null
+}
+
+export type DrawnBoard = { mains: readonly number[]; lucky: number | null }
+
+/**
+ * Levels the player is in, by the website live page's rule: before the lucky
+ * ball only plain levels with an exact main count count; after it, a lucky
+ * level needs the lucky number and a plain level needs it to miss. Reports
+ * pools, never a per-player amount, until the settlement snapshot exists.
+ */
+export function qualifiedLevels(g: WingoGame, board: DrawnBoard, owned: readonly OwnedTicket[]): QualifiedLevel[] {
+  const mainCount = g.ticketRules?.mainCount ?? 6
+  const luckyDrawn = board.mains.length >= mainCount && board.lucky != null && board.lucky !== 0
+  const settled = winnersByName(g.winners)
+  return prizeTable(g).flatMap((tier) => {
+    const tickets = owned.filter((ticket) => {
+      const matched = board.mains.filter((n) => ticket.numbers.includes(n)).length
+      if (matched < tier.mains) return false
+      if (luckyDrawn) {
+        const hit = board.lucky === ticket.lucky
+        return tier.lucky === hit && matched === tier.mains
+      }
+      return !tier.lucky && matched === tier.mains
+    }).length
+    if (tickets === 0 || !(tier.prize > 0)) return []
+    const s = settled.get(tier.name)
+    return [
+      {
+        name: tier.name,
+        label: tier.label,
+        mains: tier.mains,
+        lucky: tier.lucky,
+        pool: tier.prize,
+        tickets,
+        winners: s ? s.winners : null,
+        confirmed: s ? s.perTicket * tickets : null,
+      },
+    ]
+  })
+}
+
+export type TicketOutcome = {
+  matched: number
+  luckyHit: boolean
+  /** The `PRIZE_TIERS` key this ticket reaches, if any. */
+  tier: string | null
+  state: "pending" | "in_prize" | "won" | "no_prize"
+  /** Settled share; 0 before settlement. */
+  prize: number
+}
+
+/**
+ * One ticket against the draw (website `getWingoTicketOutcome`). The prize is
+ * only ever the settled share: a level's configured amount is its pool.
+ */
+export function ticketOutcome(g: WingoGame, board: DrawnBoard, ticket: OwnedTicket): TicketOutcome {
+  const matched = board.mains.filter((n) => ticket.numbers.includes(n)).length
+  const luckyHit = board.lucky != null && board.lucky === ticket.lucky
+  if (board.mains.length === 0) return { matched, luckyHit, tier: null, state: "pending", prize: 0 }
+  const tier = Object.entries(PRIZE_TIERS).find(([, cfg]) => cfg.mains === matched && cfg.lucky === luckyHit)?.[0] ?? null
+  const drawComplete = board.lucky != null
+  if (g.winners.length > 0) {
+    const s = tier ? winnersByName(g.winners).get(tier) : undefined
+    const prize = s && s.winners > 0 ? s.perTicket : 0
+    return { matched, luckyHit, tier, state: prize > 0 ? "won" : drawComplete ? "no_prize" : "pending", prize }
+  }
+  if (tier) return { matched, luckyHit, tier, state: "in_prize", prize: 0 }
+  return { matched, luckyHit, tier, state: drawComplete ? "no_prize" : "pending", prize: 0 }
 }
 
 /** Website `prizeDistConfig`: what each tier needs. Labels are translated copy. */

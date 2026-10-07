@@ -22,20 +22,18 @@ const POLL_MS = 2_000
 
 type Envelope<T> = { data?: T }
 
-/** The show's chat, polled like the website's `useLiveChat`. Guests read; ticket holders write. */
-export function LiveChat({ gameId }: { gameId: string }) {
-  const { t } = useTranslation()
-  const now = useNow(1000)
+/**
+ * The show's chat, polled like the website's `useLiveChat`. One poll feeds both
+ * the chat card and the stream over the video.
+ */
+export function useLiveChat(gameId: string, enabled: boolean) {
   const [status, setStatus] = useState<ChatStatus | null>(null)
   const [messages, setMessages] = useState<ChatMessage[]>([])
-  const [draft, setDraft] = useState("")
-  const [sending, setSending] = useState(false)
-  const [error, setError] = useState("")
   const [offline, setOffline] = useState(false)
   const afterRef = useRef("0")
-  const listRef = useRef<HTMLOListElement | null>(null)
 
   useEffect(() => {
+    if (!enabled) return
     let disposed = false
     let timer: ReturnType<typeof setTimeout> | undefined
     afterRef.current = "0"
@@ -74,7 +72,23 @@ export function LiveChat({ gameId }: { gameId: string }) {
       disposed = true
       clearTimeout(timer)
     }
-  }, [gameId])
+  }, [gameId, enabled])
+
+  const on = enabled && status?.enabled === true
+  return { status: on ? status : null, setStatus, messages: on ? messages : [], setMessages, offline }
+}
+
+export type LiveChatState = ReturnType<typeof useLiveChat>
+
+/** Guests read; ticket holders write. */
+export function LiveChat({ gameId, chat }: { gameId: string; chat: LiveChatState }) {
+  const { t } = useTranslation()
+  const now = useNow(1000)
+  const { status, setStatus, messages, setMessages, offline } = chat
+  const [draft, setDraft] = useState("")
+  const [sending, setSending] = useState(false)
+  const [error, setError] = useState("")
+  const listRef = useRef<HTMLOListElement | null>(null)
 
   useEffect(() => {
     const list = listRef.current

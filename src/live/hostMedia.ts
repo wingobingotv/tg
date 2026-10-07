@@ -27,6 +27,15 @@ export type ShowMedia<P extends PublicationLike> = {
   /** Publications to make sure we are subscribed to. */
   subscribe: P[]
   hasHost: boolean
+  /** An on-air guest beside the presenter (website split view), when one has video. */
+  guest: { identity: string; name: string; video: P } | null
+}
+
+type ParticipantLike<P> = { identity: string; name?: string; trackPublications: Map<string, P> }
+
+/** Website: participant name, else the identity without its `guest_` prefix. */
+export function guestDisplayName(p: { identity: string; name?: string }): string {
+  return p.name?.trim() || p.identity.replace(/^guest_/, "") || "Guest"
 }
 
 const isVideoPub = (p: PublicationLike) =>
@@ -44,7 +53,7 @@ function videoScore(p: PublicationLike): number {
 }
 
 export function pickShowMedia<P extends PublicationLike>(
-  room: { remoteParticipants: Map<string, { identity: string; trackPublications: Map<string, P> }> },
+  room: { remoteParticipants: Map<string, ParticipantLike<P>> },
   source: ProgramSource,
 ): ShowMedia<P> {
   const participants = [...room.remoteParticipants.values()]
@@ -72,5 +81,17 @@ export function pickShowMedia<P extends PublicationLike>(
   const audio = [...chosen, ...guests].flat().filter((p) => isAudioPub(p) && p.track?.kind === "audio")
   const subscribe = [...chosen, ...guests].flat().filter((p) => !p.isSubscribed && (isVideoPub(p) || isAudioPub(p)))
 
-  return { video, audio, subscribe, hasHost: hosts.length > 0 || cinema.length > 0 }
+  let guest: ShowMedia<P>["guest"] = null
+  if (video && !cinemaVideo) {
+    for (const p of participants) {
+      if (participantRole(p.identity) !== "guest") continue
+      const guestVideo = firstVideo([[...p.trackPublications.values()]], true)
+      if (guestVideo && !guestVideo.isMuted) {
+        guest = { identity: p.identity, name: guestDisplayName(p), video: guestVideo }
+        break
+      }
+    }
+  }
+
+  return { video, audio, subscribe, hasHost: hosts.length > 0 || cinema.length > 0, guest }
 }

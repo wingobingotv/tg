@@ -14,13 +14,16 @@ import {
   parseTicketRules,
   parseWingoGame,
   parseWingoGameResult,
+  parseWinnerTiers,
   prizeTable,
   purchaseErrorKind,
+  qualifiedLevels,
   quote,
   randomDraft,
   replayUrlOf,
   setLucky,
   splitDrawn,
+  ticketOutcome,
   timeLeft,
   toggleMain,
   uniqueRandomDraft,
@@ -291,5 +294,56 @@ describe("tickets", () => {
     expect(purchaseErrorKind({ status: 400, code: 400, msg: "Ticketing is closed for this game" })).toBe("closed")
     expect(purchaseErrorKind({ status: 403, code: 403, msg: "" })).toBe("private")
     expect(purchaseErrorKind({ status: 400, code: 400, msg: "Main numbers must be between 1 and 47" })).toBe("generic")
+  })
+})
+
+describe("prize levels and ticket outcomes (website live page)", () => {
+  const prized = (over: Record<string, unknown> = {}) =>
+    game({
+      prizeDistribution: [
+        { name: "secondPlace", prize: 100 },
+        { name: "thirdPlace", prize: 60 },
+        { name: "fourthPlace", prize: 40 },
+      ],
+      ...over,
+    })
+  const ticket = { numbers: [1, 2, 3, 4, 5, 6], lucky: 3 }
+  const fiveMains = [1, 2, 3, 4, 5, 9]
+
+  it("reads winnersDetails from either writer", () => {
+    expect(parseWinnerTiers(JSON.stringify([{ place: 3, ticketCount: 2, placePool: 60 }]))).toEqual([
+      { name: "thirdPlace", condition: "", winners: 2, pool: 60, perTicket: 30 },
+    ])
+    expect(parseWinnerTiers([{ name: "firstPlace", userCount: 4, totalPrize: 900, prizePerTicket: 200 }])[0]?.perTicket).toBe(200)
+    expect(parseWinnerTiers("{bad")).toEqual([])
+    expect(parseWinnerTiers(null)).toEqual([])
+    expect(prized({ winnersDetails: [{ place: 2, ticketCount: 1, placePool: 100 }] }).winners[0]?.name).toBe("secondPlace")
+  })
+
+  it("counts only plain levels before the lucky ball, then splits on the lucky hit", () => {
+    const g = prized()
+    expect(qualifiedLevels(g, { mains: fiveMains, lucky: null }, [ticket]).map((l) => l.name)).toEqual(["fourthPlace"])
+    expect(qualifiedLevels(g, { mains: fiveMains, lucky: 3 }, [ticket]).map((l) => l.name)).toEqual(["thirdPlace"])
+    expect(qualifiedLevels(g, { mains: fiveMains, lucky: 7 }, [ticket]).map((l) => l.name)).toEqual(["fourthPlace"])
+    expect(qualifiedLevels(g, { mains: [1, 2, 9, 10, 11, 12], lucky: 3 }, [ticket])).toEqual([])
+  })
+
+  it("reports pools until settled, then the confirmed share", () => {
+    const open = qualifiedLevels(prized(), { mains: fiveMains, lucky: 3 }, [ticket, ticket])[0]
+    expect(open).toMatchObject({ pool: 60, tickets: 2, winners: null, confirmed: null })
+    const settled = prized({ winnersDetails: [{ place: 3, ticketCount: 4, placePool: 60 }] })
+    expect(qualifiedLevels(settled, { mains: fiveMains, lucky: 3 }, [ticket, ticket])[0]).toMatchObject({ winners: 4, confirmed: 30 })
+  })
+
+  it("rates one ticket against the draw", () => {
+    const g = prized()
+    expect(ticketOutcome(g, { mains: [], lucky: null }, ticket).state).toBe("pending")
+    expect(ticketOutcome(g, { mains: fiveMains, lucky: null }, ticket)).toMatchObject({ matched: 5, tier: "fourthPlace", state: "in_prize", prize: 0 })
+    expect(ticketOutcome(g, { mains: [1, 9, 10, 11, 12, 13], lucky: 7 }, ticket).state).toBe("no_prize")
+    expect(ticketOutcome(g, { mains: [1, 9, 10, 11, 12, 13], lucky: null }, ticket).state).toBe("pending")
+
+    const settled = prized({ winnersDetails: [{ place: 3, ticketCount: 2, placePool: 60 }] })
+    expect(ticketOutcome(settled, { mains: fiveMains, lucky: 3 }, ticket)).toMatchObject({ tier: "thirdPlace", state: "won", prize: 30 })
+    expect(ticketOutcome(settled, { mains: fiveMains, lucky: 7 }, ticket)).toMatchObject({ tier: "fourthPlace", state: "no_prize", prize: 0 })
   })
 })

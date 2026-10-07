@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest"
 import { mergeMessages, nextAfterId, parseChatMessage, parseChatStatus, chatErrorKind, type ChatMessage } from "./chat"
 import { EMPTY_BOARD, boardBalls, decodeLiveMessage, mergedBoard, nextBoard, programFromMetadata, type Board } from "./drawBoard"
-import { pickShowMedia, type PublicationLike } from "./hostMedia"
+import { guestDisplayName, pickShowMedia, type PublicationLike } from "./hostMedia"
+import { newsScrollSeconds, stripBalls } from "./overlayMath"
 import { isRealHost, participantRole } from "./showRoom"
 
 const enc = (v: unknown) => new TextEncoder().encode(JSON.stringify(v))
@@ -20,6 +21,27 @@ describe("decodeLiveMessage", () => {
       version: 4,
     })
     expect(decodeLiveMessage(enc({ type: "news-announcement", text: " Big night " }))).toEqual({ kind: "news", text: "Big night" })
+  })
+
+  it("reads the overlay messages the website draws", () => {
+    expect(decodeLiveMessage(enc({ type: "winner-bubble", text: "7", isLucky: true, startAt: 99 }))).toEqual({
+      kind: "ball",
+      ball: 7,
+      lucky: true,
+      startAt: 99,
+    })
+    expect(decodeLiveMessage(enc({ type: "draw-finalized", winnersDetails: [{ place: 1, ticketCount: 2, placePool: 500 }] }))).toEqual({
+      kind: "finalized",
+      winners: [{ name: "firstPlace", condition: "", winners: 2, pool: 500, perTicket: 250 }],
+    })
+    expect(
+      decodeLiveMessage(enc({ type: "show-awards", awards: [{ combination: " 6+1 ", prize: "1000" }, { combination: "", prize: 5 }, { combination: "5", prize: "x" }] })),
+    ).toEqual({ kind: "awards", awards: [{ combination: "6+1", prize: 1000 }] })
+    expect(decodeLiveMessage(enc({ type: "show-awards", awards: [] }))).toBeNull()
+    expect(decodeLiveMessage(enc({ type: "cinematic-fx", effect: "fireworks" }))).toMatchObject({ kind: "fx", event: { effect: "fireworks" } })
+    expect(decodeLiveMessage(enc({ type: "cinematic-fx", effect: "nope" }))).toBeNull()
+    expect(decodeLiveMessage(enc({ type: "lucky-number", number: "07" }))).toMatchObject({ kind: "lucky_reveal", event: { number: "07" } })
+    expect(decodeLiveMessage(enc({ type: "lucky-number", number: "abcd" }))).toBeNull()
   })
 
   it("ignores junk and unknown types", () => {
@@ -120,6 +142,20 @@ describe("pickShowMedia", () => {
     expect(pickShowMedia(noFilm, "CINEMATIC").video?.name).toBe("cam")
   })
 
+  it("puts an on-air guest with video beside the presenter, never over the film", () => {
+    const r = room({
+      "pub-1": [pub("cam", "video")],
+      guest_ana: [pub("ana-cam", "video")],
+      "cinema-publisher-1": [pub("film", "video")],
+    })
+    const live = pickShowMedia(r, "INFLUENCER_LIVE")
+    expect(live.guest?.video.name).toBe("ana-cam")
+    expect(live.guest?.name).toBe("ana")
+    expect(pickShowMedia(r, "CINEMATIC").guest).toBeNull()
+    expect(pickShowMedia(room({ "pub-1": [pub("cam", "video")], guest_b: [pub("b-cam", "video", { isMuted: true })] }), "INFLUENCER_LIVE").guest).toBeNull()
+    expect(guestDisplayName({ identity: "guest_x", name: " Sara " })).toBe("Sara")
+  })
+
   it("asks to subscribe to show tracks it is not receiving", () => {
     const r = room({ "pub-1": [pub("cam", "video", { isSubscribed: false, track: undefined })] })
     const m = pickShowMedia(r, "INFLUENCER_LIVE")
@@ -173,5 +209,22 @@ describe("live chat", () => {
     expect(chatErrorKind("RATE_LIMIT")).toBe("rate")
     expect(chatErrorKind("CHAT_MUTED")).toBe("muted")
     expect(chatErrorKind("???")).toBe("generic")
+  })
+})
+
+describe("overlay math", () => {
+  it("keeps the latest twelve balls with the lucky one last", () => {
+    const mains = Array.from({ length: 14 }, (_, i) => i + 1)
+    const strip = stripBalls({ mains, lucky: 30 })
+    expect(strip).toHaveLength(12)
+    expect(strip[0]?.n).toBe(4)
+    expect(strip.at(-1)).toEqual({ n: 30, lucky: true })
+    expect(stripBalls({ mains: [5], lucky: null })).toEqual([{ n: 5, lucky: false }])
+  })
+
+  it("scrolls news for 15 to 40 seconds by length", () => {
+    expect(newsScrollSeconds("hi")).toBeCloseTo(15.2)
+    expect(newsScrollSeconds("x".repeat(100))).toBe(25)
+    expect(newsScrollSeconds("x".repeat(1000))).toBe(40)
   })
 })

@@ -1,29 +1,41 @@
-import { parseBall, parseBalls } from "../games/wingo"
+import { parseBall, parseBalls, parseWinnerTiers, type WinnerTier } from "../games/wingo"
+import { isCinematicFxEvent, type CinematicFxEvent } from "./fx/cinematic-fx"
+import { isLuckyNumberEvent, type LuckyNumberEvent } from "./fx/lucky-number"
 
 /**
- * LiveKit data messages the viewer acts on, as the website's live page handles
- * them (`live/wingo/[gameId]/page.tsx`, `workers/wingo-live-worker.ts`):
+ * LiveKit data messages the viewer acts on, as the website's live page and
+ * `OverlayContainer` handle them (`live/wingo/[gameId]/page.tsx`,
+ * `workers/wingo-live-worker.ts`):
  *
- * - `winner-bubble` with digits: one more drawn ball
+ * - `winner-bubble` with digits: one more drawn ball (`isLucky` marks the lucky one)
+ * - `winner-bubble` with text: a winner name bubble
  * - `numbers-history`: the full list; a shorter list never replaces a longer one
  * - `clear-numbers`: reset the board
- * - `draw-finalized`: results exist, re-read the game
+ * - `draw-finalized`: results exist, re-read the game; may carry `winnersDetails`
  * - `program-source-change`: CINEMATIC ↔ INFLUENCER_LIVE, newest version wins
  * - `news-announcement`: ticker text
+ * - `show-awards`: level pools the studio puts on screen
+ * - `cinematic-fx` / `lucky-number`: operator celebration and lucky reveal
  */
 
 export type ProgramSource = "CINEMATIC" | "INFLUENCER_LIVE"
 
+export type Award = { combination: string; prize: number }
+
 export type LiveEvent =
-  | { kind: "ball"; ball: number }
+  | { kind: "ball"; ball: number; lucky?: boolean; startAt?: number }
   | { kind: "history"; balls: number[] }
   | { kind: "clear" }
-  | { kind: "finalized" }
+  | { kind: "finalized"; winners?: WinnerTier[] }
   | { kind: "program"; source: ProgramSource; version: number }
   | { kind: "news"; text: string }
   | { kind: "winner"; text: string }
+  | { kind: "awards"; awards: Award[] }
+  | { kind: "fx"; event: CinematicFxEvent }
+  | { kind: "lucky_reveal"; event: LuckyNumberEvent }
 
 const MAX_TEXT = 280
+const MAX_AWARDS = 12
 
 export function decodeLiveMessage(payload: Uint8Array): LiveEvent | null {
   let msg: Record<string, unknown>
@@ -34,19 +46,37 @@ export function decodeLiveMessage(payload: Uint8Array): LiveEvent | null {
   } catch {
     return null
   }
+  if (isCinematicFxEvent(msg)) return { kind: "fx", event: msg }
+  if (isLuckyNumberEvent(msg)) return { kind: "lucky_reveal", event: msg }
   switch (msg.type) {
     case "winner-bubble": {
       const text = typeof msg.text === "string" ? msg.text.trim() : ""
       const ball = parseBall(text)
-      if (ball != null) return { kind: "ball", ball }
+      if (ball != null) {
+        const event: LiveEvent = { kind: "ball", ball }
+        if (msg.isLucky === true) event.lucky = true
+        if (typeof msg.startAt === "number" && Number.isFinite(msg.startAt)) event.startAt = msg.startAt
+        return event
+      }
       return text ? { kind: "winner", text: text.slice(0, MAX_TEXT) } : null
     }
     case "numbers-history":
       return Array.isArray(msg.numbers) ? { kind: "history", balls: parseBalls(msg.numbers) } : null
     case "clear-numbers":
       return { kind: "clear" }
-    case "draw-finalized":
-      return { kind: "finalized" }
+    case "draw-finalized": {
+      const winners = parseWinnerTiers(msg.winnersDetails)
+      return winners.length ? { kind: "finalized", winners } : { kind: "finalized" }
+    }
+    case "show-awards": {
+      if (!Array.isArray(msg.awards)) return null
+      const awards = msg.awards
+        .map((a) => (a && typeof a === "object" ? (a as Record<string, unknown>) : {}))
+        .map((a) => ({ combination: typeof a.combination === "string" ? a.combination.trim().slice(0, 24) : "", prize: Number(a.prize) }))
+        .filter((a) => a.combination && Number.isFinite(a.prize))
+        .slice(0, MAX_AWARDS)
+      return awards.length ? { kind: "awards", awards } : null
+    }
     case "program-source-change":
       return {
         kind: "program",

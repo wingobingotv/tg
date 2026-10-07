@@ -16,6 +16,7 @@ import {
   nextBoard,
   programFromMetadata,
   type Board,
+  type LiveEvent,
   type ProgramSource,
 } from "./drawBoard"
 import type { LiveConnection } from "./connection"
@@ -24,8 +25,9 @@ import { pickShowMedia } from "./hostMedia"
 /**
  * Watch one game's show room, as the website's `/live/wingo/[gameId]` page:
  * the Player API names the room and mints a subscribe-only viewer token, the
- * host's (or cinema publisher's) video goes into one <video>, audio plays once
- * the viewer allows it, and data messages drive the drawn-number board.
+ * host's (or cinema publisher's) video goes into one <video>, an on-air guest
+ * into a second one, audio plays once the viewer allows it, and data messages
+ * drive the drawn-number board and are handed to the video overlays.
  */
 
 type Envelope<T> = { data?: T }
@@ -41,24 +43,36 @@ function mobileQuality(): VideoQuality {
   return mobile ? VideoQuality.MEDIUM : VideoQuality.HIGH
 }
 
-export function useLiveShow(args: { gameId: string; enabled: boolean; mainCount: number; onFinalized: () => void }) {
+export function useLiveShow(args: {
+  gameId: string
+  enabled: boolean
+  mainCount: number
+  onFinalized: () => void
+  /** Every decoded data message, before the board applies it. */
+  onEvent?: (event: LiveEvent) => void
+}) {
   const { gameId, enabled, mainCount } = args
   const livekitUrl = config?.livekitUrl ?? ""
   const active = enabled && Boolean(livekitUrl)
 
   const videoRef = useRef<HTMLVideoElement | null>(null)
+  const guestVideoRef = useRef<HTMLVideoElement | null>(null)
   const audioRootRef = useRef<HTMLDivElement | null>(null)
   const roomRef = useRef<Room | null>(null)
   const onFinalizedRef = useRef(args.onFinalized)
+  const onEventRef = useRef(args.onEvent)
+  const mutedRef = useRef(false)
   useEffect(() => {
     onFinalizedRef.current = args.onFinalized
-  }, [args.onFinalized])
+    onEventRef.current = args.onEvent
+  }, [args.onFinalized, args.onEvent])
 
   const [connection, setConnection] = useState<LiveConnection>(active ? "connecting" : "off")
   const [hasVideo, setHasVideo] = useState(false)
   const [audioBlocked, setAudioBlocked] = useState(false)
+  const [muted, setMutedState] = useState(false)
+  const [guest, setGuest] = useState<{ identity: string; name: string } | null>(null)
   const [board, setBoard] = useState<Board>(EMPTY_BOARD)
-  const [news, setNews] = useState<string | null>(null)
 
   useEffect(() => {
     if (!active) {
@@ -72,12 +86,19 @@ export function useLiveShow(args: { gameId: string; enabled: boolean; mainCount:
     let source: ProgramSource = "INFLUENCER_LIVE"
     let version = 0
     let videoTrack: RemoteTrack | null = null
+    let guestTrack: RemoteTrack | null = null
     const audioEls = new Map<string, HTMLMediaElement>()
 
     const detachVideo = () => {
       const el = videoRef.current
       if (videoTrack && el) videoTrack.detach(el)
       videoTrack = null
+    }
+
+    const detachGuest = () => {
+      const el = guestVideoRef.current
+      if (guestTrack && el) guestTrack.detach(el)
+      guestTrack = null
     }
 
     const sync = (room: Room) => {
@@ -108,6 +129,18 @@ export function useLiveShow(args: { gameId: string; enabled: boolean; mainCount:
       }
       setHasVideo(Boolean(next) && !(media.video?.isMuted ?? true))
 
+      const guestNext = (media.guest?.video.track as RemoteTrack | undefined) ?? null
+      const guestEl = guestVideoRef.current
+      if (guestNext !== guestTrack) detachGuest()
+      if (guestNext && guestEl && guestNext !== guestTrack) {
+        guestNext.attach(guestEl)
+        guestEl.muted = true
+        void guestEl.play().catch(() => {})
+        guestTrack = guestNext
+      }
+      const nextGuest = media.guest && guestNext ? { identity: media.guest.identity, name: media.guest.name } : null
+      setGuest((prev) => (prev?.identity === nextGuest?.identity && prev?.name === nextGuest?.name ? prev : nextGuest))
+
       const wanted = new Set<string>()
       for (const pub of media.audio) {
         const track = pub.track as RemoteTrack | undefined
@@ -115,6 +148,7 @@ export function useLiveShow(args: { gameId: string; enabled: boolean; mainCount:
         wanted.add(track.sid)
         if (audioEls.has(track.sid)) continue
         const audioEl = track.attach()
+        audioEl.muted = mutedRef.current
         audioRootRef.current?.appendChild(audioEl)
         audioEls.set(track.sid, audioEl)
       }
@@ -130,6 +164,8 @@ export function useLiveShow(args: { gameId: string; enabled: boolean; mainCount:
     const teardown = () => {
       clearInterval(probeTimer)
       detachVideo()
+      detachGuest()
+      setGuest(null)
       for (const audioEl of audioEls.values()) audioEl.remove()
       audioEls.clear()
       const room = roomRef.current
@@ -197,12 +233,11 @@ export function useLiveShow(args: { gameId: string; enabled: boolean; mainCount:
           .on(RoomEvent.DataReceived, (payload: Uint8Array) => {
             const event = decodeLiveMessage(payload)
             if (!event) return
+            onEventRef.current?.(event)
             if (event.kind === "ball" || event.kind === "history" || event.kind === "clear") {
               setBoard((b) => nextBoard(b, event, mainCount))
             } else if (event.kind === "finalized") {
               onFinalizedRef.current()
-            } else if (event.kind === "news") {
-              setNews(event.text)
             } else if (event.kind === "program" && event.version > version) {
               source = event.source
               version = event.version
@@ -257,6 +292,8 @@ export function useLiveShow(args: { gameId: string; enabled: boolean; mainCount:
       if (document.visibilityState !== "visible") return
       const el = videoRef.current
       if (el && videoTrack) void el.play().catch(() => {})
+      const guestEl = guestVideoRef.current
+      if (guestEl && guestTrack) void guestEl.play().catch(() => {})
       const room = roomRef.current
       if (room) sync(room)
     }
@@ -281,5 +318,24 @@ export function useLiveShow(args: { gameId: string; enabled: boolean; mainCount:
     void videoRef.current?.play().catch(() => {})
   }, [])
 
-  return { connection, hasVideo, audioBlocked, enableAudio, board, news, videoRef, audioRootRef }
+  /** The player's mute switch: every show audio element, current and future. */
+  const setMuted = useCallback((next: boolean) => {
+    mutedRef.current = next
+    setMutedState(next)
+    for (const el of audioRootRef.current?.querySelectorAll("audio") ?? []) el.muted = next
+  }, [])
+
+  return {
+    connection,
+    hasVideo,
+    audioBlocked,
+    enableAudio,
+    muted,
+    setMuted,
+    guest,
+    board,
+    videoRef,
+    guestVideoRef,
+    audioRootRef,
+  }
 }

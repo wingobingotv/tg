@@ -42,6 +42,9 @@ export type TelegramWebApp = {
   offEvent(event: string, cb: () => void): void
   BackButton?: BackButton
   HapticFeedback?: { notificationOccurred(type: "error" | "success" | "warning"): void }
+  isFullscreen?: boolean
+  requestFullscreen?(): void
+  exitFullscreen?(): void
 }
 
 const BRAND_BG = "#0c0a09"
@@ -120,6 +123,22 @@ export function confirmAction(message: string): Promise<boolean> {
     return new Promise((resolve) => app.showConfirm?.(message, resolve))
   }
   return Promise.resolve(window.confirm(message))
+}
+
+/**
+ * Telegram's own fullscreen (Bot API 8.0), so the player can use the whole
+ * screen instead of sitting under Telegram's header. A no-op on older clients;
+ * the page's fullscreen layout works without it.
+ */
+export function setTelegramFullscreen(on: boolean): void {
+  try {
+    const app = getWebApp()
+    if (!app?.isVersionAtLeast("8.0")) return
+    if (on && !app.isFullscreen) app.requestFullscreen?.()
+    else if (!on && app.isFullscreen) app.exitFullscreen?.()
+  } catch {
+    // Fullscreen is a nicety only.
+  }
 }
 
 export function haptic(type: "error" | "success" | "warning"): void {

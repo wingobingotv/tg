@@ -112,10 +112,13 @@ export function wingoTicketsKey(gameId: string) {
 }
 
 /** One game, as the website's `useFetchSingleGameData`; null when it does not exist. */
-export function useWingoGame(gameId: string, refetchInterval: number | false) {
+export function useWingoGame(
+  gameId: string,
+  refetchInterval: number | false | ((data: WingoGameResult | null | undefined) => number | false),
+) {
   return useQuery({
     queryKey: wingoGameKey(gameId),
-    refetchInterval,
+    refetchInterval: typeof refetchInterval === "function" ? (query) => refetchInterval(query.state.data) : refetchInterval,
     queryFn: async (): Promise<WingoGameResult | null> => {
       const res = await post<Envelope<unknown>>("/wingo/getTournaments", { gameId })
       return parseWingoGameResult(res.data, gameId)
