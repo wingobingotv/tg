@@ -16,6 +16,7 @@
   --home-danger-fg: #ff9fb0;
   --home-info: #22d3ee;
   --radius: 18px;
+  --ball-size: clamp(26px, 9vw, 40px);
 
   --b-violet: #8b5cf6;
   --b-cyan: #22d3ee;
@@ -57,6 +58,7 @@
 
 :root[data-design="b"] .topbar-wallet {
   margin-inline-start: auto;
+  flex: none;
   display: inline-flex;
   align-items: center;
   gap: 8px;
@@ -72,12 +74,15 @@
   cursor: pointer;
 }
 
+/* The balance is never cut; the brand name gives way first. */
 :root[data-design="b"] .topbar-balance {
+  font-size: clamp(0.8rem, 3.8vw, 1rem);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
 
 :root[data-design="b"] .topbar-plus {
+  flex: none;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -369,11 +374,6 @@
   font-weight: 900;
 }
 
-:root[data-design="b"] .ball {
-  inline-size: 36px;
-  block-size: 36px;
-}
-
 :root[data-design="b"] .ball-hit,
 :root[data-design="b"] .num-on {
   color: #2a1400;
@@ -412,6 +412,7 @@
 
 :root[data-design="b"] .grid {
   gap: 8px;
+  gap: clamp(5px, 2.2cqi, 12px);
 }
 
 /* ---------- Ticket shop ---------- */

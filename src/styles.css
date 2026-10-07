@@ -11,6 +11,9 @@
   --home-danger-fg: #fca5a5;
   --home-info: #38bdf8;
   --radius: 14px;
+  /* Ticket and drawn-number balls: 7 per row fit a 280px-wide phone. */
+  --ball-size: clamp(26px, 8.6vw, 38px);
+  --gutter: clamp(10px, 4vw, 16px);
 
   /* Telegram sets these (Bot API 8.0+); env() covers older clients. */
   --safe-top: max(var(--tg-safe-area-inset-top, 0px), env(safe-area-inset-top, 0px));
@@ -289,6 +292,7 @@ p {
   min-block-size: 100vh;
   display: flex;
   flex-direction: column;
+  overflow-x: clip;
 }
 
 .topbar {
@@ -296,17 +300,26 @@ p {
   align-items: center;
   gap: 10px;
   padding-block: calc(var(--safe-top) + var(--content-top) + 12px) 12px;
-  padding-inline: 16px;
+  padding-inline: var(--gutter);
+}
+
+.topbar .logo {
+  flex: none;
 }
 
 .brand {
+  min-inline-size: 0;
   font-weight: 700;
   font-size: 1.1rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .content {
   flex: 1;
-  padding-inline: 16px;
+  min-inline-size: 0;
+  padding-inline: var(--gutter);
   padding-block-end: calc(var(--safe-bottom) + 84px);
   max-inline-size: 640px;
   inline-size: 100%;
@@ -319,10 +332,11 @@ p {
 }
 
 .card {
+  min-inline-size: 0;
   background: var(--home-card);
   border: 1px solid var(--home-border);
   border-radius: var(--radius);
-  padding: 16px;
+  padding: var(--gutter);
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -348,13 +362,14 @@ p {
 
 .details {
   display: grid;
-  grid-template-columns: auto 1fr;
+  grid-template-columns: fit-content(50%) minmax(0, 1fr);
   gap: 8px 16px;
   margin: 0;
 }
 
 .details dt {
   color: var(--home-text-muted);
+  overflow-wrap: anywhere;
 }
 
 .details dd {
@@ -555,15 +570,19 @@ p {
 .balls {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: calc(var(--ball-size) * 0.16);
+  min-inline-size: 0;
+  max-inline-size: 100%;
 }
 
 .ball {
+  flex: none;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  inline-size: 34px;
-  block-size: 34px;
+  inline-size: var(--ball-size);
+  block-size: var(--ball-size);
+  font-size: calc(var(--ball-size) * 0.42);
   border-radius: 50%;
   background: var(--home-bg);
   border: 1px solid var(--home-border);
@@ -630,6 +649,7 @@ p {
 .prize-label {
   display: flex;
   flex-direction: column;
+  min-inline-size: 0;
 }
 
 /* Ticket shop */
@@ -681,7 +701,10 @@ p {
   border-color: color-mix(in srgb, var(--home-accent) 45%, transparent);
 }
 
+/* The picker sizes itself from its own width, so it fits any phone and
+   uses more columns, not bigger balls, on tablets and desktop. */
 .picker {
+  container: picker / inline-size;
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -689,39 +712,73 @@ p {
 
 .picker-head {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
+  gap: 4px 8px;
 }
 
 .picker-actions {
   display: inline-flex;
+  flex-wrap: wrap;
   gap: 4px;
 }
 
-.grid {
-  display: grid;
-  gap: 6px;
+.picker-actions .btn-link {
+  padding-inline: 10px;
 }
 
-.grid-main {
-  grid-template-columns: repeat(7, 1fr);
+.grid {
+  --grid-cols: 7;
+  display: grid;
+  grid-template-columns: repeat(var(--grid-cols), minmax(0, 1fr));
+  gap: 6px;
+  gap: clamp(4px, 1.8cqi, 10px);
 }
 
 .grid-lucky {
-  grid-template-columns: repeat(5, 1fr);
+  --grid-cols: 5;
+}
+
+@container picker (max-width: 250px) {
+  .grid-main {
+    --grid-cols: 6;
+  }
+}
+
+@container picker (min-width: 420px) {
+  .grid-main {
+    --grid-cols: 9;
+  }
+
+  .grid-lucky {
+    --grid-cols: 10;
+  }
+}
+
+@container picker (min-width: 600px) {
+  .grid-main {
+    --grid-cols: 12;
+  }
 }
 
 .num {
   aspect-ratio: 1;
-  min-block-size: 36px;
+  inline-size: 100%;
+  min-inline-size: 0;
+  max-inline-size: 64px;
+  justify-self: center;
+  padding: 0;
   border-radius: 50%;
   border: 1px solid var(--home-border);
   background: var(--home-bg);
   color: var(--home-text);
   font: inherit;
+  font-size: 0.9rem;
+  font-size: clamp(0.72rem, 4.2cqi, 1.1rem);
   font-weight: 600;
   font-variant-numeric: tabular-nums;
+  line-height: 1;
   cursor: pointer;
 }
 
@@ -821,6 +878,7 @@ dd.summary-total {
 }
 
 .stage {
+  container: stage / inline-size;
   position: relative;
   inline-size: 100%;
   aspect-ratio: 16 / 9;
@@ -1089,6 +1147,18 @@ dd.summary-total {
   animation: drum-in 0.5s ease-out forwards;
 }
 
+@container stage (max-width: 320px) {
+  .drum {
+    scale: 0.62;
+  }
+}
+
+@container stage (min-width: 520px) {
+  .drum {
+    scale: 1;
+  }
+}
+
 @keyframes drum-in {
   from {
     opacity: 0;
@@ -1325,6 +1395,7 @@ dd.summary-total {
 .ov-bubble-text {
   display: block;
   max-inline-size: 80vw;
+  max-inline-size: 85cqi;
   padding: 10px 16px;
   border-radius: 20px;
   border: 2px solid rgba(255, 255, 255, 0.3);
@@ -1619,6 +1690,11 @@ dd.summary-total {
   align-items: center;
   justify-content: space-between;
   gap: 8px;
+  min-inline-size: 0;
+}
+
+.ticket-row .outcome-chip {
+  white-space: nowrap;
 }
 
 .outcome-chip {
@@ -1769,7 +1845,7 @@ dd.summary-total {
 
 .chat-msg {
   display: grid;
-  grid-template-columns: 1fr auto;
+  grid-template-columns: minmax(0, 1fr) auto;
   gap: 2px 8px;
   padding: 8px 10px;
   border-radius: 10px;
@@ -1869,8 +1945,14 @@ dd.summary-total {
   margin: 0;
   padding: 0;
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
+}
+
+@media (max-width: 340px) {
+  .cadences {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
 .cadence {
@@ -1999,7 +2081,7 @@ dd.summary-total {
 
 .cadence-stats-daily {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
 }
 
@@ -2219,7 +2301,7 @@ select.field-input {
 
 .winner-facts {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
   margin: 0;
 }
@@ -2235,6 +2317,7 @@ select.field-input {
 .prize-row-facts dd {
   margin: 0;
   font-weight: 700;
+  overflow-wrap: anywhere;
 }
 
 .winner-prize {
@@ -2327,14 +2410,14 @@ select.field-input {
 
 .prize-row-facts {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 8px;
   margin: 0;
 }
 
 .prize-total {
   display: grid;
-  grid-template-columns: 1fr auto auto;
+  grid-template-columns: minmax(0, 1fr) auto auto;
   gap: 12px;
   padding-block-start: 10px;
   font-weight: 800;
@@ -2615,8 +2698,8 @@ select.field-input {
   align-items: center;
   justify-content: center;
   align-self: center;
-  inline-size: 224px;
-  block-size: 224px;
+  inline-size: min(224px, 100%);
+  aspect-ratio: 1;
   padding: 12px;
   border-radius: 16px;
   background: #fff;
