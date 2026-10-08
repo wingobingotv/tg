@@ -96,8 +96,8 @@ async function fetchRate(from: string, to: string): Promise<number | null> {
 // Card: Visa / Mastercard and the local methods of the player's country
 // ---------------------------------------------------------------------------
 
-/** Smallest card deposit, in US dollars (the website's MINIMUM_USD). */
-export const CARD_MINIMUM_USD = 5
+/** Card and bank minimum in USD until the region's own loads (the website's MINIMUM_USD). */
+export const CARD_MINIMUM_USD = 1
 
 export type CardFieldOption = { value: string; labelKey: string }
 
@@ -128,7 +128,7 @@ export type CardOptions = {
   cardAvailable: boolean
   /** Set when the card is charged in a local currency (IRR). */
   chargeCurrency: string | null
-  /** Card minimum in USD for this region's gateway; null keeps CARD_MINIMUM_USD. */
+  /** Card and bank minimum in USD for the player's region (admin-set); null keeps CARD_MINIMUM_USD. */
   minimumUsd: number | null
 }
 
@@ -508,6 +508,7 @@ export const DEPOSIT_ERROR_COPY: Record<string, string> = {
     "Visa/Mastercard payments aren't available in your country right now. Please choose another deposit method.",
   card_gateway_unavailable:
     "The payment service didn't respond. Please try again in a few minutes or choose another deposit method.",
+  amount_below_minimum: "This amount is below the minimum deposit. Enter a higher amount to continue.",
   riverpe_kyc_rejected:
     "Check that the payer's name, phone number, date of birth, NIN and BVN exactly match the bank's records, then try again.",
   rate_unavailable: "We couldn't load today's exchange rate. Please try again in a moment.",

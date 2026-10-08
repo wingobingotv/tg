@@ -398,6 +398,7 @@
   "This voucher type is UUSD. To purchase this voucher, please visit the following website:": "Ce type de bon est UUSD. Pour acheter ce bon, veuillez visiter le site suivant :",
   "Then, search for UUSD in the tokens section.": "Ensuite, recherchez UUSD dans la section des jetons.",
   "The payment service didn't respond. Please try again in a few minutes or choose another deposit method.": "Le service de paiement n'a pas répondu. Veuillez réessayer dans quelques minutes ou choisir un autre mode de dépôt.",
+  "This amount is below the minimum deposit. Enter a higher amount to continue.": "Ce montant est inférieur au dépôt minimum. Veuillez saisir un montant plus élevé pour continuer.",
   "Check that the payer's name, phone number, date of birth, NIN and BVN exactly match the bank's records, then try again.": "Vérifiez que le nom, le téléphone, la date de naissance, le NIN et le BVN du payeur correspondent exactement aux dossiers de la banque, puis réessayez.",
   "We couldn't load today's exchange rate. Please try again in a moment.": "Impossible de charger le taux de change du jour. Veuillez réessayer dans un instant.",
   "Visa / Mastercard": "Visa / Mastercard",

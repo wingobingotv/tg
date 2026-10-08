@@ -398,6 +398,7 @@
   "This voucher type is UUSD. To purchase this voucher, please visit the following website:": "نوع هذه القسيمة هو UUSD. لشراء هذه القسيمة، يرجى زيارة الموقع التالي:",
   "Then, search for UUSD in the tokens section.": "ثم ابحث عن UUSD في قسم الرموز.",
   "The payment service didn't respond. Please try again in a few minutes or choose another deposit method.": "لم تستجب خدمة الدفع. يرجى المحاولة مرة أخرى بعد بضع دقائق أو اختيار طريقة إيداع أخرى.",
+  "This amount is below the minimum deposit. Enter a higher amount to continue.": "هذا المبلغ أقل من الحد الأدنى للإيداع. أدخل مبلغًا أعلى للمتابعة.",
   "Check that the payer's name, phone number, date of birth, NIN and BVN exactly match the bank's records, then try again.": "تأكد من أن اسم الدافع ورقم هاتفه وتاريخ ميلاده وNIN وBVN تطابق سجلات البنك تمامًا، ثم حاول مرة أخرى.",
   "We couldn't load today's exchange rate. Please try again in a moment.": "تعذّر تحميل سعر الصرف الحالي. يُرجى المحاولة مرة أخرى بعد قليل.",
   "Visa / Mastercard": "فيزا / ماستركارد",

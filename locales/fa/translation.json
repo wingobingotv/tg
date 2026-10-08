@@ -398,6 +398,7 @@
   "This voucher type is UUSD. To purchase this voucher, please visit the following website:": "این ووچر از نوع UUSD است. برای خریدش به وب‌سایت زیر بروید:",
   "Then, search for UUSD in the tokens section.": "سپس در بخش توکن‌ها عبارت UUSD را جستجو کنید.",
   "The payment service didn't respond. Please try again in a few minutes or choose another deposit method.": "سرویس پرداخت پاسخ نداد. لطفاً چند دقیقه دیگر دوباره تلاش کنید یا روش واریز دیگری را انتخاب کنید.",
+  "This amount is below the minimum deposit. Enter a higher amount to continue.": "این مبلغ کمتر از حداقل واریز است. برای ادامه، مبلغ بیشتری وارد کنید.",
   "Check that the payer's name, phone number, date of birth, NIN and BVN exactly match the bank's records, then try again.": "بررسی کنید نام، شماره تلفن، تاریخ تولد، NIN و BVN پرداخت‌کننده دقیقاً با سوابق بانک یکی باشد، سپس دوباره تلاش کنید.",
   "We couldn't load today's exchange rate. Please try again in a moment.": "نرخ ارز امروز بارگیری نشد. لطفاً چند لحظه دیگر دوباره امتحان کنید.",
   "Visa / Mastercard": "ویزا / مسترکارت",

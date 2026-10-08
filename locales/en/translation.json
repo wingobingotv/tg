@@ -398,6 +398,7 @@
   "This voucher type is UUSD. To purchase this voucher, please visit the following website:": "This voucher type is UUSD. To purchase this voucher, please visit the following website:",
   "Then, search for UUSD in the tokens section.": "Then, search for UUSD in the tokens section.",
   "The payment service didn't respond. Please try again in a few minutes or choose another deposit method.": "The payment service didn't respond. Please try again in a few minutes or choose another deposit method.",
+  "This amount is below the minimum deposit. Enter a higher amount to continue.": "This amount is below the minimum deposit. Enter a higher amount to continue.",
   "Check that the payer's name, phone number, date of birth, NIN and BVN exactly match the bank's records, then try again.": "Check that the payer's name, phone number, date of birth, NIN and BVN exactly match the bank's records, then try again.",
   "We couldn't load today's exchange rate. Please try again in a moment.": "We couldn't load today's exchange rate. Please try again in a moment.",
   "Visa / Mastercard": "Visa / Mastercard",
