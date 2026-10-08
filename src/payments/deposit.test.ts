@@ -117,6 +117,13 @@ describe("card", () => {
     })
   })
 
+  it("takes the region's card minimum from the server, else none", () => {
+    expect(d.parseCardOptions({ cardChargeCurrency: "IRR", cardMinimumUsd: 1 }).minimumUsd).toBe(1)
+    expect(d.parseCardOptions({}).minimumUsd).toBeNull()
+    expect(d.parseCardOptions({ cardMinimumUsd: 0 }).minimumUsd).toBeNull()
+    expect(d.parseCardOptions({ cardMinimumUsd: "abc" }).minimumUsd).toBeNull()
+  })
+
   it("starts a card payment with the payer details and returns the provider page", async () => {
     handler = () => ({ data: { paymentLink: "https://pay.example/x", localTransactionId: 42 } })
     const out = await d.startCardPayment({

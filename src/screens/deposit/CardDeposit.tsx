@@ -58,7 +58,7 @@ export function CardDeposit() {
 
   const country = options.data?.country ?? null
   const fields = useMemo(() => method?.fields ?? [], [method])
-  const minimum = rate.data ? minimumIn(CARD_MINIMUM_USD, rate.data) : null
+  const minimum = rate.data ? minimumIn(options.data?.minimumUsd ?? CARD_MINIMUM_USD, rate.data) : null
   const money = (n: number) => formatMoney(n, currency, lang)
 
   const savedForMethod = method

@@ -128,6 +128,8 @@ export type CardOptions = {
   cardAvailable: boolean
   /** Set when the card is charged in a local currency (IRR). */
   chargeCurrency: string | null
+  /** Card minimum in USD for this region's gateway; null keeps CARD_MINIMUM_USD. */
+  minimumUsd: number | null
 }
 
 const FIELD_TYPES = new Set(["text", "tel", "email", "date", "select"])
@@ -153,6 +155,7 @@ function parseField(raw: unknown): CardField | null {
 
 export function parseCardOptions(raw: unknown): CardOptions {
   const r = obj(raw)
+  const minimumUsd = num(r.cardMinimumUsd)
   const methods = (Array.isArray(r.methods) ? r.methods : [])
     .map((m) => obj(m))
     .filter((m) => str(m.methodKey) !== "")
@@ -170,6 +173,7 @@ export function parseCardOptions(raw: unknown): CardOptions {
     methods,
     cardAvailable: r.cardAvailable !== false,
     chargeCurrency: str(r.cardChargeCurrency) || null,
+    minimumUsd: minimumUsd != null && minimumUsd > 0 ? minimumUsd : null,
   }
 }
 
